@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+    <!-- ── Page Header ── -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-slate-800">
+            <span class="gradient-text">Analytics</span>
+        </h1>
+        <p class="mt-1 text-sm text-slate-500">
+            RAG pipeline performance metrics, retrieval quality, and query analytics
+        </p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         SUMMARY METRIC CARDS
+         ══════════════════════════════════════════════════════════════════ -->
+    {% set ns = namespace(
+        total_evals = evaluations|length if evaluations else 0,
+        sum_precision = 0,
+        sum_recall = 0,
+        sum_faithfulness = 0,
+        sum_latency = 0
+    ) %}
+    {% if evaluations %}
+        {% for ev in evaluations %}
+            {% set ns.sum_precision = ns.sum_precision + (ev.retrieval_precision|default(0)|float) %}
+            {% set ns.sum_recall = ns.sum_recall + (ev.retrieval_recall|default(0)|float) %}
+            {% set ns.sum_faithfulness = ns.sum_faithfulness + (ev.answer_faithfulness|default(0)|float) %}
+            {% set ns.sum_latency = ns.sum_latency + (ev.response_latency_ms|default(0)|float) %}
+        {% endfor %}
+    {% endif %}
+    {% set avg_precision = (ns.sum_precision / ns.total_evals * 100)|round(1) if ns.total_evals > 0 else 0 %}
+    {% set avg_recall = (ns.sum_recall / ns.total_evals * 100)|round(1) if ns.total_evals > 0 else 0 %}
+    {% set avg_faithfulness = (ns.sum_faithfulness / ns.total_evals * 100)|round(1) if ns.total_evals > 0 else 0 %}
+    {% set avg_latency = (ns.sum_latency / ns.total_evals)|round(0)|int if ns.total_evals > 0 else 0 %}
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+
+        <!-- Average Precision -->
+        <div class="card-hover bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-blue-50 text-blue-600">
+                    <i data-lucide="target" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Precision</span>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-800">{{ avg_precision }}%</p>
+            <div class="mt-2 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-700"
+                     style="width: {{ avg_precision }}%"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-400">Avg retrieval precision across {{ ns.total_evals }} evaluations</p>
+        </div>
+
+        <!-- Average Recall -->
+        <div class="card-hover bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600">
+                    <i data-lucide="search-check" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recall</span>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-800">{{ avg_recall }}%</p>
+            <div class="mt-2 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-700"
+                     style="width: {{ avg_recall }}%"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-400">Avg retrieval recall across {{ ns.total_evals }} evaluations</p>
+        </div>
+
+        <!-- Average Faithfulness -->
+        <div class="card-hover bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-50 text-violet-600">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Faithfulness</span>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-800">{{ avg_faithfulness }}%</p>
+            <div class="mt-2 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-700"
+                     style="width: {{ avg_faithfulness }}%"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-400">Avg answer faithfulness across {{ ns.total_evals }} evaluations</p>
+        </div>
+
+        <!-- Average Latency -->
+        <div class="card-hover bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-50 text-amber-600">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Latency</span>
+            </div>
+            <p class="text-3xl font-extrabold text-slate-800">{{ avg_latency }}<span class="text-base font-semibold text-slate-400 ml-1">ms</span></p>
+            <div class="mt-2 w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                {% set latency_bar = [((avg_latency / 5000) * 100), 100]|min %}
+                <div class="h-full rounded-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-700"
+                     style="width: {{ latency_bar }}%"></div>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-400">Avg response latency (target &lt; 3000ms)</p>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         CHARTS
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+        <!-- Chart 1: Query Confidence Over Time (Line) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-100 text-primary-600">
+                    <i data-lucide="trending-up" class="w-4 h-4"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-700">Query Confidence Over Time</h3>
+            </div>
+            <div class="p-5">
+                <canvas id="confidenceChart" height="260"></canvas>
+            </div>
+        </div>
+
+        <!-- Chart 2: Retrieval Strategy Comparison (Bar) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 text-blue-600">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-700">Retrieval Strategy Comparison</h3>
+            </div>
+            <div class="p-5">
+                <canvas id="strategyBarChart" height="260"></canvas>
+            </div>
+        </div>
+
+        <!-- Chart 3: Query Distribution by Strategy (Doughnut) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-violet-100 text-violet-600">
+                    <i data-lucide="pie-chart" class="w-4 h-4"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-700">Query Distribution by Strategy</h3>
+            </div>
+            <div class="p-5 flex items-center justify-center">
+                <div class="w-64 h-64">
+                    <canvas id="strategyDoughnutChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart 4: Latency vs Confidence (Scatter) -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+            <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600">
+                    <i data-lucide="scatter-chart" class="w-4 h-4"></i>
+                </div>
+                <h3 class="text-sm font-bold text-slate-700">Latency vs Confidence</h3>
+            </div>
+            <div class="p-5">
+                <canvas id="scatterChart" height="260"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         RECENT EVALUATIONS TABLE
+         ══════════════════════════════════════════════════════════════════ -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-100 text-primary-600">
+                <i data-lucide="table" class="w-4 h-4"></i>
+            </div>
+            <h3 class="text-sm font-bold text-slate-700">Recent Evaluations</h3>
+            <span class="ml-auto text-[11px] font-semibold text-slate-400">
+                {{ evaluations|length if evaluations else 0 }} records
+            </span>
+        </div>
+
+        <div class="overflow-x-auto">
+            {% if evaluations and evaluations|length > 0 %}
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100">
+                        <th class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Date</th>
+                        <th class="px-6 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-400">Strategy</th>
+                        <th class="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">Precision</th>
+                        <th class="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">Recall</th>
+                        <th class="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">Faithfulness</th>
+                        <th class="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">Relevance</th>
+                        <th class="px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">Latency</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-50">
+                    {% for ev in evaluations %}
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="px-6 py-3 text-xs text-slate-500 whitespace-nowrap">
+                            {{ ev.created_at|default('N/A') }}
+                        </td>
+                        <td class="px-6 py-3 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold
+                                         {% if ev.retrieval_strategy == 'hybrid' %}bg-violet-50 text-violet-700
+                                         {% elif ev.retrieval_strategy == 'dense' %}bg-blue-50 text-blue-700
+                                         {% elif ev.retrieval_strategy == 'sparse' %}bg-amber-50 text-amber-700
+                                         {% else %}bg-slate-50 text-slate-600{% endif %}">
+                                {{ ev.retrieval_strategy|default('N/A') }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% set p_val = (ev.retrieval_precision|default(0)|float * 100)|round(1) %}
+                            <span class="text-xs font-semibold {% if p_val >= 80 %}text-emerald-600{% elif p_val >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+                                {{ p_val }}%
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% set r_val = (ev.retrieval_recall|default(0)|float * 100)|round(1) %}
+                            <span class="text-xs font-semibold {% if r_val >= 80 %}text-emerald-600{% elif r_val >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+                                {{ r_val }}%
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% set f_val = (ev.answer_faithfulness|default(0)|float * 100)|round(1) %}
+                            <span class="text-xs font-semibold {% if f_val >= 80 %}text-emerald-600{% elif f_val >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+                                {{ f_val }}%
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            {% set rel_val = (ev.answer_relevance|default(0)|float * 100)|round(1) %}
+                            <span class="text-xs font-semibold {% if rel_val >= 80 %}text-emerald-600{% elif rel_val >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+                                {{ rel_val }}%
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            <span class="text-xs font-semibold text-slate-600">
+                                {{ ev.response_latency_ms|default(0)|int }}ms
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+                <div class="flex items-center justify-center w-14 h-14 mb-4 rounded-2xl bg-slate-100">
+                    <i data-lucide="database" class="w-7 h-7 text-slate-300"></i>
+                </div>
+                <p class="text-sm font-medium text-slate-400">No evaluations recorded yet.</p>
+                <p class="text-xs text-slate-400 mt-1">Run queries with evaluation enabled to see metrics here.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ── Shared Chart.js defaults ──
+    Chart.defaults.font.family = "'Inter', 'system-ui', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
+
+    // ── Data from Jinja ──
+    var recentQueries = {{ recent_queries|tojson if recent_queries else '[]' }};
+    var evaluations = {{ evaluations|tojson if evaluations else '[]' }};
+
+    // ══════════════════════════════════════════════════════════════
+    // CHART 1: Query Confidence Over Time (Line)
+    // ══════════════════════════════════════════════════════════════
+    var confLabels = [];
+    var confData = [];
+    recentQueries.forEach(function(q) {
+        var label = q.created_at || '';
+        if (label.length > 16) label = label.substring(5, 16);
+        confLabels.push(label);
+        confData.push(parseFloat(q.confidence_score || 0) * 100);
+    });
+
+    var confCtx = document.getElementById('confidenceChart').getContext('2d');
+    var confGradient = confCtx.createLinearGradient(0, 0, 0, 260);
+    confGradient.addColorStop(0, 'rgba(99, 102, 241, 0.15)');
+    confGradient.addColorStop(1, 'rgba(99, 102, 241, 0.0)');
+
+    new Chart(confCtx, {
+        type: 'line',
+        data: {
+            labels: confLabels,
+            datasets: [{
+                label: 'Confidence (%)',
+                data: confData,
+                borderColor: '#6366f1',
+                backgroundColor: confGradient,
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#6366f1',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(148, 163, 184, 0.08)' },
+                    ticks: { callback: function(v) { return v + '%'; } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { maxRotation: 45, maxTicksLimit: 12 }
+                }
+            },
+            plugins: {
+                legend: { display: true, position: 'top', align: 'end' },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#cbd5e1',
+                    cornerRadius: 8,
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) { return 'Confidence: ' + ctx.parsed.y.toFixed(1) + '%'; }
+                    }
+                }
+            }
+        }
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    // CHART 2: Retrieval Strategy Comparison (Bar)
+    // ══════════════════════════════════════════════════════════════
+    var strategyPrecision = {};
+    var strategyCounts = {};
+    evaluations.forEach(function(ev) {
+        var s = ev.retrieval_strategy || 'unknown';
+        if (!strategyPrecision[s]) { strategyPrecision[s] = 0; strategyCounts[s] = 0; }
+        strategyPrecision[s] += parseFloat(ev.retrieval_precision || 0);
+        strategyCounts[s] += 1;
+    });
+
+    var barLabels = Object.keys(strategyPrecision);
+    var barData = barLabels.map(function(s) {
+        return strategyCounts[s] > 0 ? ((strategyPrecision[s] / strategyCounts[s]) * 100).toFixed(1) : 0;
+    });
+    var barColors = barLabels.map(function(s) {
+        if (s === 'dense') return '#3b82f6';
+        if (s === 'sparse') return '#f59e0b';
+        if (s === 'hybrid') return '#8b5cf6';
+        return '#64748b';
+    });
+
+    new Chart(document.getElementById('strategyBarChart'), {
+        type: 'bar',
+        data: {
+            labels: barLabels.map(function(s) { return s.charAt(0).toUpperCase() + s.slice(1); }),
+            datasets: [{
+                label: 'Avg Precision (%)',
+                data: barData,
+                backgroundColor: barColors,
+                borderColor: barColors.map(function(c) { return c; }),
+                borderWidth: 1,
+                borderRadius: 8,
+                barPercentage: 0.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(148, 163, 184, 0.08)' },
+                    ticks: { callback: function(v) { return v + '%'; } }
+                },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#cbd5e1',
+                    cornerRadius: 8,
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) { return 'Precision: ' + ctx.parsed.y + '%'; }
+                    }
+                }
+            }
+        }
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    // CHART 3: Query Distribution by Strategy (Doughnut)
+    // ══════════════════════════════════════════════════════════════
+    var doughnutLabels = Object.keys(strategyCounts);
+    var doughnutData = doughnutLabels.map(function(s) { return strategyCounts[s]; });
+    var doughnutColors = doughnutLabels.map(function(s) {
+        if (s === 'dense') return '#3b82f6';
+        if (s === 'sparse') return '#f59e0b';
+        if (s === 'hybrid') return '#8b5cf6';
+        return '#64748b';
+    });
+
+    new Chart(document.getElementById('strategyDoughnutChart'), {
+        type: 'doughnut',
+        data: {
+            labels: doughnutLabels.map(function(s) { return s.charAt(0).toUpperCase() + s.slice(1); }),
+            datasets: [{
+                data: doughnutData,
+                backgroundColor: doughnutColors,
+                borderColor: '#ffffff',
+                borderWidth: 3,
+                hoverOffset: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: { padding: 16 }
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#cbd5e1',
+                    cornerRadius: 8,
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) {
+                            var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                            var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                            return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // ══════════════════════════════════════════════════════════════
+    // CHART 4: Latency vs Confidence (Scatter)
+    // ══════════════════════════════════════════════════════════════
+    var scatterData = recentQueries.map(function(q) {
+        return {
+            x: parseFloat(q.processing_time_ms || 0),
+            y: parseFloat(q.confidence_score || 0) * 100
+        };
+    });
+
+    var scatterCtx = document.getElementById('scatterChart').getContext('2d');
+
+    new Chart(scatterCtx, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: 'Queries',
+                data: scatterData,
+                backgroundColor: 'rgba(139, 92, 246, 0.5)',
+                borderColor: '#8b5cf6',
+                borderWidth: 1.5,
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                pointHoverBackgroundColor: '#8b5cf6',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: { display: true, text: 'Latency (ms)', font: { weight: '600', size: 11 }, color: '#64748b' },
+                    grid: { color: 'rgba(148, 163, 184, 0.08)' },
+                    beginAtZero: true
+                },
+                y: {
+                    title: { display: true, text: 'Confidence (%)', font: { weight: '600', size: 11 }, color: '#64748b' },
+                    grid: { color: 'rgba(148, 163, 184, 0.08)' },
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { callback: function(v) { return v + '%'; } }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#cbd5e1',
+                    cornerRadius: 8,
+                    padding: 10,
+                    callbacks: {
+                        label: function(ctx) {
+                            return 'Latency: ' + ctx.parsed.x + 'ms | Confidence: ' + ctx.parsed.y.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+});
+</script>
+{% endblock %}
