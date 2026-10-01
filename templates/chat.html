@@ -1,0 +1,813 @@
+{% extends "base.html" %}
+{% block title %}Chat - CodeSage AI{% endblock %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-4rem)] overflow-hidden">
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- LEFT COLUMN: Chat Interface (65%)                                   -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <div class="w-[65%] flex flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+
+    <!-- Project Selector Bar -->
+    <div class="flex items-center gap-3 px-5 py-3 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60">
+      <div class="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+        Project
+      </div>
+      <select id="projectSelector"
+              class="flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors">
+        <option value="">-- Select a project --</option>
+        {% for p in projects %}
+          {% if p['status'] == 'ready' %}
+            <option value="{{ p['id'] }}" {% if project_id and p['id'] == project_id %}selected{% endif %}>
+              {{ p['name'] }}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+      {% if selected_project %}
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Ready
+        </span>
+      {% endif %}
+    </div>
+
+    <!-- Chat Messages Area -->
+    <div id="chatArea" class="flex-1 overflow-y-auto px-5 py-4 space-y-5 scroll-smooth" style="scrollbar-width: thin;">
+
+      {% if not project_id %}
+        <!-- No Project Selected -->
+        <div class="flex flex-col items-center justify-center h-full text-center opacity-80">
+          <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center mb-6">
+            <svg class="w-12 h-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-slate-700 dark:text-slate-300 mb-2">Welcome to CodeSage AI</h3>
+          <p class="text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
+            Select a project from the dropdown above to start querying your codebase.
+            The AI agent will analyze your code using a multi-step reasoning pipeline.
+          </p>
+          <div class="mt-6 grid grid-cols-3 gap-3 text-xs text-slate-400 dark:text-slate-500">
+            <div class="flex flex-col items-center gap-1 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              Hybrid Search
+            </div>
+            <div class="flex flex-col items-center gap-1 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              Hallucination Guard
+            </div>
+            <div class="flex flex-col items-center gap-1 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Self-Correction
+            </div>
+          </div>
+        </div>
+
+      {% else %}
+        <!-- Query History -->
+        {% for q in query_history %}
+          <!-- User Message -->
+          <div class="flex justify-end">
+            <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-md">
+              <p class="text-sm leading-relaxed">{{ q['query_text'] }}</p>
+              <div class="mt-1.5 text-[10px] text-indigo-200 text-right">
+                {{ q['created_at']|truncate(16, True, '') }}
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Response -->
+          <div class="flex justify-start">
+            <div class="max-w-[85%]">
+              <div class="flex items-center gap-2 mb-1.5">
+                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">CodeSage AI</span>
+                {% if q['confidence_score'] %}
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold
+                    {% if q['confidence_score'] >= 0.7 %}bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400
+                    {% elif q['confidence_score'] >= 0.4 %}bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400
+                    {% else %}bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400{% endif %}">
+                    {{ (q['confidence_score'] * 100)|round|int }}% confidence
+                  </span>
+                {% endif %}
+              </div>
+              <div class="px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">
+                <div class="prose prose-sm dark:prose-invert prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-code:text-indigo-600 dark:prose-code:text-indigo-400 max-w-none ai-response-content">
+                  {{ q['response_text']|default('')|safe }}
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+
+        {% if not query_history %}
+          <!-- Empty Chat State -->
+          <div class="flex flex-col items-center justify-center h-full text-center opacity-70">
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 flex items-center justify-center mb-4">
+              <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            </div>
+            <h3 class="text-lg font-bold text-slate-600 dark:text-slate-400 mb-1">Ask about {{ selected_project['name'] }}</h3>
+            <p class="text-sm text-slate-400 dark:text-slate-500 max-w-sm">
+              Ask questions about this codebase. CodeSage will search, analyze, and explain the code with full reasoning transparency.
+            </p>
+            <div class="mt-5 flex flex-wrap justify-center gap-2">
+              <button onclick="insertSuggestion(this)" class="suggestion-chip px-3 py-1.5 text-xs rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+                Explain the main entry point
+              </button>
+              <button onclick="insertSuggestion(this)" class="suggestion-chip px-3 py-1.5 text-xs rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+                What are the key data structures?
+              </button>
+              <button onclick="insertSuggestion(this)" class="suggestion-chip px-3 py-1.5 text-xs rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+                How does error handling work?
+              </button>
+              <button onclick="insertSuggestion(this)" class="suggestion-chip px-3 py-1.5 text-xs rounded-full border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+                List all functions and their purposes
+              </button>
+            </div>
+          </div>
+        {% endif %}
+      {% endif %}
+
+      <!-- Streaming loading indicator (hidden by default) -->
+      <div id="loadingBubble" class="hidden flex justify-start">
+        <div class="max-w-[85%]">
+          <div class="flex items-center gap-2 mb-1.5">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">CodeSage AI</span>
+            <span class="text-[10px] text-indigo-500 dark:text-indigo-400 font-medium animate-pulse">Processing...</span>
+          </div>
+          <div class="px-4 py-4 rounded-2xl rounded-tl-md bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+              <div class="flex gap-1">
+                <div class="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style="animation-delay: 0ms;"></div>
+                <div class="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style="animation-delay: 150ms;"></div>
+                <div class="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style="animation-delay: 300ms;"></div>
+              </div>
+              <span id="loadingStatus" class="text-sm text-slate-500 dark:text-slate-400">Analyzing your query...</span>
+            </div>
+            <div id="loadingTrace" class="mt-3 space-y-1.5 hidden">
+              <!-- Live trace mini-steps will appear here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-4">
+      {% if project_id %}
+        <div class="flex items-end gap-3">
+          <div class="flex-1 relative">
+            <textarea id="queryInput"
+                      rows="2"
+                      placeholder="Ask about the codebase... (Shift+Enter for new line)"
+                      class="w-full resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm px-4 py-3 pr-12 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors placeholder-slate-400 dark:placeholder-slate-500"
+                      style="scrollbar-width: thin; max-height: 120px;"></textarea>
+            <div class="absolute right-3 bottom-2.5 text-[10px] text-slate-400 dark:text-slate-500">
+              <kbd class="px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">Enter</kbd> send
+            </div>
+          </div>
+          <div class="flex flex-col gap-2">
+            <select id="strategySelector"
+                    class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs px-2 py-1.5 focus:ring-2 focus:ring-indigo-500">
+              <option value="hybrid" selected>Hybrid Search</option>
+              <option value="dense">Dense (Semantic)</option>
+              <option value="sparse">Sparse (BM25)</option>
+            </select>
+            <button id="sendBtn"
+                    onclick="sendQuery()"
+                    class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              Send
+            </button>
+          </div>
+        </div>
+      {% else %}
+        <div class="text-center py-3 text-sm text-slate-400 dark:text-slate-500 italic">
+          Select a project above to start chatting
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- RIGHT COLUMN: Agent Reasoning Panel (35%)                           -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <div class="w-[35%] flex flex-col bg-slate-50 dark:bg-slate-800/40">
+
+    <!-- Panel Header -->
+    <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-800 dark:text-slate-200">Agent Reasoning Trace</h2>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500">11-state agentic RAG pipeline</p>
+          </div>
+        </div>
+        <button id="collapseAllBtn" onclick="collapseAllSteps()" class="text-[10px] px-2 py-1 rounded-md border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          Collapse All
+        </button>
+      </div>
+    </div>
+
+    <!-- Agent Trace Steps -->
+    <div id="agentTracePanel" class="flex-1 overflow-y-auto px-4 py-4" style="scrollbar-width: thin;">
+
+      <!-- Default: No trace yet -->
+      <div id="noTraceMessage" class="flex flex-col items-center justify-center h-full text-center opacity-60">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 flex items-center justify-center mb-4">
+          <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+        </div>
+        <h4 class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">No Reasoning Trace Yet</h4>
+        <p class="text-xs text-slate-400 dark:text-slate-500 max-w-[220px] leading-relaxed">
+          Send a query to see the AI agent's step-by-step reasoning process in real time.
+        </p>
+        <!-- Pipeline Preview -->
+        <div class="mt-5 w-full max-w-[240px]">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">1</span>
+              Query Received
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">2</span>
+              Query Planning
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">3</span>
+              Tool Selection
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">4</span>
+              Retrieval
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">5</span>
+              Re-Ranking
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">6</span>
+              Quality Check
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">7</span>
+              Self-Correction
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">8</span>
+              Answer Generation
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">9</span>
+              Citation Mapping
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">10</span>
+              Hallucination Check
+            </div>
+            <div class="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-600 py-1">
+              <span class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-[8px]">11</span>
+              Response Ready
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trace steps container (populated by JS) -->
+      <div id="traceStepsContainer" class="hidden space-y-0.5 relative">
+        <!-- Vertical connector line -->
+        <div id="traceConnectorLine" class="absolute left-[15px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-indigo-300 via-purple-300 to-emerald-300 dark:from-indigo-700 dark:via-purple-700 dark:to-emerald-700 rounded-full"></div>
+      </div>
+    </div>
+
+    <!-- Trace Summary Footer -->
+    <div id="traceSummary" class="hidden border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80 px-4 py-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div class="text-center">
+          <div id="summaryTime" class="text-base font-bold text-slate-800 dark:text-slate-200">--</div>
+          <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Total Time</div>
+        </div>
+        <div class="text-center">
+          <div id="summaryConfidence" class="text-base font-bold text-slate-800 dark:text-slate-200">--</div>
+          <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Confidence</div>
+        </div>
+        <div class="text-center">
+          <div id="summarySteps" class="text-base font-bold text-slate-800 dark:text-slate-200">--</div>
+          <div class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Steps</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  /* Code syntax highlighting inside AI responses */
+  .ai-response-content pre {
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
+  }
+  .ai-response-content code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+  }
+  .ai-response-content p {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+  }
+  .ai-response-content ul, .ai-response-content ol {
+    margin-left: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+  .ai-response-content li {
+    margin-bottom: 0.25rem;
+  }
+  .ai-response-content h1, .ai-response-content h2, .ai-response-content h3 {
+    font-weight: 700;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Trace step expand/collapse animation */
+  .trace-step-details {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease-out, opacity 0.25s ease-out;
+    opacity: 0;
+  }
+  .trace-step-details.expanded {
+    max-height: 600px;
+    opacity: 1;
+  }
+
+  /* Trace step hover */
+  .trace-step-card:hover {
+    transform: translateX(2px);
+    transition: transform 0.15s ease;
+  }
+
+  /* Custom scrollbar */
+  #chatArea::-webkit-scrollbar,
+  #agentTracePanel::-webkit-scrollbar {
+    width: 5px;
+  }
+  #chatArea::-webkit-scrollbar-thumb,
+  #agentTracePanel::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .dark #chatArea::-webkit-scrollbar-thumb,
+  .dark #agentTracePanel::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
+  /* Pulse animation for active processing step */
+  @keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(99,102,241,0); }
+  }
+  .step-processing {
+    animation: stepPulse 1.5s ease-in-out infinite;
+  }
+</style>
+
+<script>
+  // ════════════════════════════════════════════════════════════════════════
+  // ICON MAP: Maps Lucide icon names to inline SVGs
+  // ════════════════════════════════════════════════════════════════════════
+  const ICON_SVG = {
+    'message-square': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>',
+    'git-branch': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 3v12m0 0a3 3 0 103 3V9a3 3 0 10-3 3zm12-6a3 3 0 11-6 0 3 3 0 016 0z"/>',
+    'wrench': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>',
+    'search': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>',
+    'bar-chart-2': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 20V10M12 20V4M6 20v-6"/>',
+    'check-circle': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+    'refresh-cw': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>',
+    'cpu': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>',
+    'link': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>',
+    'shield': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>',
+    'check': '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>',
+    'circle': '<circle cx="12" cy="12" r="10" stroke-width="2"/>'
+  };
+
+  function getSvgIcon(name, cls) {
+    const inner = ICON_SVG[name] || ICON_SVG['circle'];
+    return `<svg class="${cls || 'w-4 h-4'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${inner}</svg>`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // STATUS BADGE HELPERS
+  // ════════════════════════════════════════════════════════════════════════
+  function getStatusBadge(status) {
+    const map = {
+      'success': { icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-600 dark:text-emerald-400', label: 'Done' },
+      'retry':   { icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>', bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-600 dark:text-amber-400', label: 'Retry' },
+      'failed':  { icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>', bg: 'bg-red-100 dark:bg-red-900/40', text: 'text-red-600 dark:text-red-400', label: 'Failed' },
+      'skipped': { icon: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"/>', bg: 'bg-slate-100 dark:bg-slate-700', text: 'text-slate-500 dark:text-slate-400', label: 'Skipped' },
+    };
+    const s = map[status] || map['success'];
+    return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${s.bg} ${s.text}">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">${s.icon}</svg>
+      ${s.label}
+    </span>`;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // PROJECT SELECTION
+  // ════════════════════════════════════════════════════════════════════════
+  document.getElementById('projectSelector').addEventListener('change', function() {
+    const pid = this.value;
+    if (pid) {
+      window.location.href = `/chat/${pid}`;
+    } else {
+      window.location.href = '/chat';
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // SUGGESTION CHIPS
+  // ════════════════════════════════════════════════════════════════════════
+  function insertSuggestion(btn) {
+    const input = document.getElementById('queryInput');
+    if (input) {
+      input.value = btn.textContent.trim();
+      input.focus();
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // QUERY SUBMISSION
+  // ════════════════════════════════════════════════════════════════════════
+  let isProcessing = false;
+
+  async function sendQuery() {
+    const input = document.getElementById('queryInput');
+    const query = input.value.trim();
+    if (!query || isProcessing) return;
+
+    const projectId = {{ project_id|default('null') }};
+    if (!projectId) return;
+
+    const strategy = document.getElementById('strategySelector').value;
+
+    isProcessing = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    // Add user message bubble
+    appendUserMessage(query);
+    input.value = '';
+    input.style.height = 'auto';
+
+    // Show loading
+    showLoading();
+    scrollChat();
+
+    // Clear previous trace
+    clearTrace();
+
+    try {
+      const resp = await fetch('/api/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: query,
+          project_id: projectId,
+          retrieval_strategy: strategy
+        })
+      });
+
+      const data = await resp.json();
+
+      if (resp.ok) {
+        hideLoading();
+        appendAIResponse(data);
+        renderAgentTrace(data.agent_trace || [], data.confidence_score, data.processing_time_ms);
+      } else {
+        hideLoading();
+        appendErrorMessage(data.error || 'An error occurred while processing your query.');
+      }
+    } catch (err) {
+      hideLoading();
+      appendErrorMessage('Network error: Could not reach the server. Please try again.');
+      console.error('Query error:', err);
+    } finally {
+      isProcessing = false;
+      document.getElementById('sendBtn').disabled = false;
+      scrollChat();
+    }
+  }
+
+  // Enter to send, Shift+Enter for newline
+  document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('queryInput');
+    if (input) {
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendQuery();
+        }
+      });
+      // Auto-resize textarea
+      input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+      });
+    }
+
+    // Scroll to bottom on page load if there are messages
+    scrollChat();
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // CHAT RENDERING
+  // ════════════════════════════════════════════════════════════════════════
+  function appendUserMessage(text) {
+    const chatArea = document.getElementById('chatArea');
+    const html = `
+      <div class="flex justify-end">
+        <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-md">
+          <p class="text-sm leading-relaxed">${escapeHtml(text)}</p>
+          <div class="mt-1.5 text-[10px] text-indigo-200 text-right">${formatTimestamp()}</div>
+        </div>
+      </div>`;
+    chatArea.insertAdjacentHTML('beforeend', html);
+  }
+
+  function appendAIResponse(data) {
+    const chatArea = document.getElementById('chatArea');
+    const confidence = data.confidence_score || 0;
+    const timeMs = data.processing_time_ms || 0;
+
+    let confidenceClass, confidenceColor;
+    if (confidence >= 0.7) {
+      confidenceClass = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400';
+    } else if (confidence >= 0.4) {
+      confidenceClass = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400';
+    } else {
+      confidenceClass = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400';
+    }
+
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-[85%]">
+          <div class="flex items-center gap-2 mb-1.5">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            </div>
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">CodeSage AI</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${confidenceClass}">
+              ${Math.round(confidence * 100)}% confidence
+            </span>
+            <span class="text-[10px] text-slate-400 dark:text-slate-500">
+              ${formatDuration(timeMs)}
+            </span>
+          </div>
+          <div class="px-4 py-3 rounded-2xl rounded-tl-md bg-slate-100 dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div class="prose prose-sm dark:prose-invert prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-code:text-indigo-600 dark:prose-code:text-indigo-400 max-w-none ai-response-content">
+              ${data.response_html || '<p>' + escapeHtml(data.response_text || '') + '</p>'}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    chatArea.insertAdjacentHTML('beforeend', html);
+  }
+
+  function appendErrorMessage(text) {
+    const chatArea = document.getElementById('chatArea');
+    const html = `
+      <div class="flex justify-start">
+        <div class="max-w-[85%]">
+          <div class="flex items-center gap-2 mb-1.5">
+            <div class="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            </div>
+            <span class="text-xs font-semibold text-red-500">Error</span>
+          </div>
+          <div class="px-4 py-3 rounded-2xl rounded-tl-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 shadow-sm">
+            <p class="text-sm text-red-700 dark:text-red-300">${escapeHtml(text)}</p>
+          </div>
+        </div>
+      </div>`;
+    chatArea.insertAdjacentHTML('beforeend', html);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // LOADING STATE
+  // ════════════════════════════════════════════════════════════════════════
+  function showLoading() {
+    document.getElementById('loadingBubble').classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    document.getElementById('loadingBubble').classList.add('hidden');
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // AGENT TRACE RENDERING
+  // ════════════════════════════════════════════════════════════════════════
+  function clearTrace() {
+    const container = document.getElementById('traceStepsContainer');
+    // Remove all children except the connector line
+    const line = document.getElementById('traceConnectorLine');
+    container.innerHTML = '';
+    container.appendChild(line);
+    container.classList.add('hidden');
+    document.getElementById('noTraceMessage').classList.remove('hidden');
+    document.getElementById('traceSummary').classList.add('hidden');
+  }
+
+  function renderAgentTrace(steps, confidence, totalTime) {
+    if (!steps || steps.length === 0) return;
+
+    document.getElementById('noTraceMessage').classList.add('hidden');
+    const container = document.getElementById('traceStepsContainer');
+    container.classList.remove('hidden');
+
+    // Remove previous steps (keep connector line)
+    const line = document.getElementById('traceConnectorLine');
+    container.innerHTML = '';
+    container.appendChild(line);
+
+    steps.forEach((step, idx) => {
+      const stepEl = createTraceStep(step, idx, steps.length);
+      container.appendChild(stepEl);
+    });
+
+    // Show summary footer
+    const summaryEl = document.getElementById('traceSummary');
+    summaryEl.classList.remove('hidden');
+    document.getElementById('summaryTime').textContent = formatDuration(totalTime || 0);
+    document.getElementById('summaryConfidence').textContent = Math.round((confidence || 0) * 100) + '%';
+    document.getElementById('summarySteps').textContent = steps.length;
+  }
+
+  function createTraceStep(step, idx, total) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative pl-9 trace-step-card';
+
+    // Color for the node circle
+    const color = step.color || '#6366f1';
+
+    // Status badge HTML
+    const badge = getStatusBadge(step.status || 'success');
+
+    // Duration formatting
+    const dur = step.duration_ms != null ? formatDuration(step.duration_ms) : '';
+
+    // Build data sections for expandable detail
+    const inputHtml = renderDataSection('Input', step.input_data);
+    const outputHtml = renderDataSection('Output', step.output_data);
+
+    wrapper.innerHTML = `
+      <!-- Node circle on the timeline -->
+      <div class="absolute left-0 top-3 w-[30px] h-[30px] rounded-full border-2 flex items-center justify-center z-10"
+           style="border-color: ${color}; background: ${color}15;">
+        <span class="text-xs font-bold" style="color: ${color};">${step.step_number || idx + 1}</span>
+      </div>
+
+      <!-- Step card -->
+      <div class="mb-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden transition-all">
+        <!-- Header (clickable) -->
+        <button class="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                onclick="toggleTraceStep(this)">
+          <span style="color: ${color};">
+            ${getSvgIcon(step.icon || 'circle', 'w-4 h-4 flex-shrink-0')}
+          </span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(step.label || step.state)}</span>
+              ${badge}
+            </div>
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">${escapeHtml(step.description || '')}</p>
+          </div>
+          <span class="text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0 tabular-nums">${dur}</span>
+          <svg class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0 transition-transform chevron-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- Expandable detail -->
+        <div class="trace-step-details">
+          <div class="px-3 pb-3 space-y-2 border-t border-slate-100 dark:border-slate-700/60">
+            <!-- Reasoning -->
+            ${step.reasoning ? `
+            <div class="mt-2">
+              <div class="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Reasoning</div>
+              <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">${escapeHtml(step.reasoning)}</p>
+            </div>` : ''}
+
+            <!-- Input data -->
+            ${inputHtml}
+
+            <!-- Output data -->
+            ${outputHtml}
+          </div>
+        </div>
+      </div>
+    `;
+
+    return wrapper;
+  }
+
+  function renderDataSection(title, data) {
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) return '';
+
+    let rows = '';
+    for (const [key, value] of Object.entries(data)) {
+      let displayVal;
+      if (Array.isArray(value)) {
+        displayVal = value.length > 0 ? value.map(v => typeof v === 'object' ? JSON.stringify(v) : String(v)).join(', ') : '(empty)';
+      } else if (typeof value === 'object' && value !== null) {
+        displayVal = JSON.stringify(value);
+      } else {
+        displayVal = String(value);
+      }
+      // Truncate long values
+      if (displayVal.length > 200) {
+        displayVal = displayVal.substring(0, 200) + '...';
+      }
+      const keyLabel = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      rows += `
+        <div class="flex gap-2">
+          <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap min-w-[80px]">${escapeHtml(keyLabel)}</span>
+          <span class="text-[10px] text-slate-600 dark:text-slate-300 break-all">${escapeHtml(displayVal)}</span>
+        </div>`;
+    }
+
+    const titleColor = title === 'Input' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400';
+    return `
+      <div>
+        <div class="text-[10px] font-semibold ${titleColor} uppercase tracking-wider mb-1">${title} Data</div>
+        <div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2 space-y-1">
+          ${rows}
+        </div>
+      </div>`;
+  }
+
+  function toggleTraceStep(btn) {
+    const details = btn.nextElementSibling;
+    const chevron = btn.querySelector('.chevron-icon');
+    if (details.classList.contains('expanded')) {
+      details.classList.remove('expanded');
+      chevron.style.transform = 'rotate(0deg)';
+    } else {
+      details.classList.add('expanded');
+      chevron.style.transform = 'rotate(180deg)';
+    }
+  }
+
+  function collapseAllSteps() {
+    document.querySelectorAll('.trace-step-details.expanded').forEach(el => {
+      el.classList.remove('expanded');
+    });
+    document.querySelectorAll('.chevron-icon').forEach(el => {
+      el.style.transform = 'rotate(0deg)';
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // UTILITY FUNCTIONS
+  // ════════════════════════════════════════════════════════════════════════
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+  }
+
+  function formatTimestamp() {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatDuration(ms) {
+    if (ms == null || ms === 0) return '';
+    if (ms < 1000) return Math.round(ms) + 'ms';
+    if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+    return (ms / 60000).toFixed(1) + 'm';
+  }
+
+  function scrollChat() {
+    const chatArea = document.getElementById('chatArea');
+    if (chatArea) {
+      setTimeout(() => {
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }, 50);
+    }
+  }
+</script>
+{% endblock %}
