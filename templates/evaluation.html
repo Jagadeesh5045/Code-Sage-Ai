@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Evaluation — CodeSage AI{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-900">Retrieval Strategy Evaluation</h1>
+            <p class="text-slate-500 mt-1">Compare dense, sparse, and hybrid retrieval performance</p>
+        </div>
+    </div>
+
+    <!-- Strategy Comparison Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% set strategies = ['dense', 'sparse', 'hybrid'] %}
+        {% set colors = {'dense': 'blue', 'sparse': 'amber', 'hybrid': 'indigo'} %}
+        {% set icons = {'dense': 'brain', 'sparse': 'search', 'hybrid': 'layers'} %}
+        {% set descs = {'dense': 'Vector semantic similarity search using sentence-transformers embeddings', 'sparse': 'BM25 keyword-based search with tokenized code terms', 'hybrid': 'Combined dense + sparse with Reciprocal Rank Fusion'} %}
+
+        {% for strategy in strategies %}
+        {% set ns = namespace(count=0, avg_p=0, avg_r=0, avg_f=0, avg_l=0) %}
+        {% for e in evaluations %}
+            {% if e.retrieval_strategy == strategy %}
+                {% set ns.count = ns.count + 1 %}
+                {% set ns.avg_p = ns.avg_p + (e.retrieval_precision or 0) %}
+                {% set ns.avg_r = ns.avg_r + (e.retrieval_recall or 0) %}
+                {% set ns.avg_f = ns.avg_f + (e.answer_faithfulness or 0) %}
+                {% set ns.avg_l = ns.avg_l + (e.response_latency_ms or 0) %}
+            {% endif %}
+        {% endfor %}
+
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-lg transition-shadow">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-{{ colors[strategy] }}-100 flex items-center justify-center">
+                    <i data-lucide="{{ icons[strategy] }}" class="w-5 h-5 text-{{ colors[strategy] }}-600"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-900 capitalize">{{ strategy }} Search</h3>
+                    <p class="text-xs text-slate-500">{{ ns.count }} evaluations</p>
+                </div>
+            </div>
+            <p class="text-sm text-slate-600 mb-4">{{ descs[strategy] }}</p>
+
+            {% if ns.count > 0 %}
+            <div class="space-y-3">
+                {% set p = (ns.avg_p / ns.count * 100)|round(1) %}
+                {% set r = (ns.avg_r / ns.count * 100)|round(1) %}
+                {% set f = (ns.avg_f / ns.count * 100)|round(1) %}
+                {% set l = (ns.avg_l / ns.count)|round(0) %}
+
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-600">Precision</span>
+                        <span class="font-semibold {% if p >= 70 %}text-green-600{% elif p >= 40 %}text-amber-600{% else %}text-red-600{% endif %}">{{ p }}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-{{ colors[strategy] }}-500 h-2 rounded-full" style="width: {{ p }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-600">Recall</span>
+                        <span class="font-semibold">{{ r }}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-{{ colors[strategy] }}-400 h-2 rounded-full" style="width: {{ r }}%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-600">Faithfulness</span>
+                        <span class="font-semibold">{{ f }}%</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2">
+                        <div class="bg-{{ colors[strategy] }}-300 h-2 rounded-full" style="width: {{ f }}%"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-sm pt-1 border-t border-slate-100">
+                    <span class="text-slate-600">Avg Latency</span>
+                    <span class="font-semibold text-slate-700">{{ l }}ms</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-sm text-slate-400 italic">No evaluations yet for this strategy</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Comparison Chart -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <h3 class="text-lg font-semibold text-slate-900 mb-4">Strategy Comparison</h3>
+        <div class="h-80">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Evaluation History Table -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200">
+            <h3 class="text-lg font-semibold text-slate-900">Evaluation History</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Strategy</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Precision</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Recall</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Faithfulness</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Relevance</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Latency</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Chunks</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Date</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for e in evaluations %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full
+                                {% if e.retrieval_strategy == 'hybrid' %}bg-indigo-100 text-indigo-700
+                                {% elif e.retrieval_strategy == 'dense' %}bg-blue-100 text-blue-700
+                                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                                {{ e.retrieval_strategy or 'hybrid' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm font-medium {% if (e.retrieval_precision or 0) >= 0.7 %}text-green-600{% elif (e.retrieval_precision or 0) >= 0.4 %}text-amber-600{% else %}text-red-600{% endif %}">
+                            {{ "%.1f"|format((e.retrieval_precision or 0) * 100) }}%
+                        </td>
+                        <td class="px-4 py-3 text-sm">{{ "%.1f"|format((e.retrieval_recall or 0) * 100) }}%</td>
+                        <td class="px-4 py-3 text-sm">{{ "%.1f"|format((e.answer_faithfulness or 0) * 100) }}%</td>
+                        <td class="px-4 py-3 text-sm">{{ "%.1f"|format((e.answer_relevance or 0) * 100) }}%</td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ (e.response_latency_ms or 0)|round(0)|int }}ms</td>
+                        <td class="px-4 py-3 text-sm text-slate-600">{{ e.chunks_retrieved or 0 }} → {{ e.chunks_relevant or 0 }}</td>
+                        <td class="px-4 py-3 text-sm text-slate-400">{{ e.created_at[:16] if e.created_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not evaluations %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-8 text-center text-slate-400">
+                            No evaluations yet. Ask questions in the chat to generate evaluation data.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Build comparison chart data from evaluations
+    const strategies = { dense: { p: [], r: [], f: [], l: [] }, sparse: { p: [], r: [], f: [], l: [] }, hybrid: { p: [], r: [], f: [], l: [] } };
+
+    {% for e in evaluations %}
+    (function() {
+        const s = "{{ e.retrieval_strategy or 'hybrid' }}";
+        if (strategies[s]) {
+            strategies[s].p.push({{ e.retrieval_precision or 0 }});
+            strategies[s].r.push({{ e.retrieval_recall or 0 }});
+            strategies[s].f.push({{ e.answer_faithfulness or 0 }});
+            strategies[s].l.push({{ e.response_latency_ms or 0 }});
+        }
+    })();
+    {% endfor %}
+
+    function avg(arr) { return arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : 0; }
+
+    const ctx = document.getElementById('comparisonChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['Precision', 'Recall', 'Faithfulness', 'Speed (inv. latency)'],
+                datasets: [
+                    {
+                        label: 'Dense',
+                        data: [avg(strategies.dense.p)*100, avg(strategies.dense.r)*100, avg(strategies.dense.f)*100, strategies.dense.l.length ? Math.max(0, 100 - avg(strategies.dense.l)/100) : 0],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                    },
+                    {
+                        label: 'Sparse',
+                        data: [avg(strategies.sparse.p)*100, avg(strategies.sparse.r)*100, avg(strategies.sparse.f)*100, strategies.sparse.l.length ? Math.max(0, 100 - avg(strategies.sparse.l)/100) : 0],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                    },
+                    {
+                        label: 'Hybrid',
+                        data: [avg(strategies.hybrid.p)*100, avg(strategies.hybrid.r)*100, avg(strategies.hybrid.f)*100, strategies.hybrid.l.length ? Math.max(0, 100 - avg(strategies.hybrid.l)/100) : 0],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99,102,241,0.1)',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { beginAtZero: true, max: 100, ticks: { stepSize: 20 } } },
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

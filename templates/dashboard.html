@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ── Hero Header ──────────────────────────────────────────────────────── -->
+<div class="mb-10">
+  <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Dashboard</h1>
+      <p class="mt-1 text-sm text-gray-500">Real-time overview of your Agentic RAG code intelligence pipeline.</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs text-gray-400">
+      <span class="relative flex h-2 w-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+      </span>
+      System Active
+    </div>
+  </div>
+</div>
+
+<!-- ── Stat Cards ───────────────────────────────────────────────────────── -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+  <!-- Total Projects -->
+  <div class="relative overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 p-6 group hover:shadow-xl transition-shadow duration-300">
+    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors duration-300"></div>
+    <div class="relative">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/>
+          </svg>
+        </div>
+        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Projects</span>
+      </div>
+      <p class="text-4xl font-black text-gray-900">{{ stats.total_projects }}</p>
+      <p class="mt-1 text-xs text-gray-400">Repositories indexed</p>
+    </div>
+  </div>
+
+  <!-- Total Queries -->
+  <div class="relative overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 p-6 group hover:shadow-xl transition-shadow duration-300">
+    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-violet-50 group-hover:bg-violet-100 transition-colors duration-300"></div>
+    <div class="relative">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+          </svg>
+        </div>
+        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Queries</span>
+      </div>
+      <p class="text-4xl font-black text-gray-900">{{ stats.total_queries }}</p>
+      <p class="mt-1 text-xs text-gray-400">AI-powered searches</p>
+    </div>
+  </div>
+
+  <!-- Avg Confidence -->
+  <div class="relative overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 p-6 group hover:shadow-xl transition-shadow duration-300">
+    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-indigo-50 group-hover:bg-indigo-100 transition-colors duration-300"></div>
+    <div class="relative">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z"/>
+          </svg>
+        </div>
+        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Avg Confidence</span>
+      </div>
+      <p class="text-4xl font-black text-gray-900">
+        {% if stats.avg_confidence %}
+          {{ "%.0f"|format(stats.avg_confidence * 100) }}%
+        {% else %}
+          --
+        {% endif %}
+      </p>
+      <p class="mt-1 text-xs text-gray-400">Response reliability</p>
+    </div>
+  </div>
+
+  <!-- Total Chunks -->
+  <div class="relative overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-gray-100 p-6 group hover:shadow-xl transition-shadow duration-300">
+    <div class="absolute -top-6 -right-6 h-24 w-24 rounded-full bg-violet-50 group-hover:bg-violet-100 transition-colors duration-300"></div>
+    <div class="relative">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-600">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"/>
+          </svg>
+        </div>
+        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Chunks</span>
+      </div>
+      <p class="text-4xl font-black text-gray-900">{{ "{:,}".format(stats.total_chunks) }}</p>
+      <p class="mt-1 text-xs text-gray-400">Knowledge fragments stored</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick Actions ────────────────────────────────────────────────────── -->
+<div class="mb-10">
+  <div class="flex flex-col sm:flex-row gap-4">
+    <a href="/ingest"
+       class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-200">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9.75v6.75m0 0-3-3m3 3 3-3m-8.25 6a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z"/>
+      </svg>
+      Ingest New Repository
+    </a>
+    <a href="/chat"
+       class="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-violet-700 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 transition-all duration-200">
+      <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"/>
+      </svg>
+      Start Chat
+    </a>
+  </div>
+</div>
+
+<!-- ── Active Repositories ──────────────────────────────────────────────── -->
+<div class="mb-10">
+  <div class="flex items-center justify-between mb-5">
+    <h2 class="text-lg font-bold text-gray-900">Active Repositories</h2>
+    <a href="/repositories" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors">View all &rarr;</a>
+  </div>
+
+  {% if projects %}
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% for project in projects %}
+    <a href="/chat/{{ project.id }}" class="block group">
+      <div class="rounded-2xl bg-white shadow ring-1 ring-gray-100 p-5 hover:shadow-lg hover:ring-indigo-200 transition-all duration-200">
+        <!-- Header row -->
+        <div class="flex items-start justify-between mb-3">
+          <div class="min-w-0 flex-1">
+            <h3 class="text-base font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">{{ project.name }}</h3>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Added {{ project.created_at[:10] if project.created_at else 'N/A' }}
+            </p>
+          </div>
+          <!-- Status Badge -->
+          {% if project.status == 'ready' %}
+            <span class="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700 ring-1 ring-inset ring-green-200">
+              <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
+              Ready
+            </span>
+          {% elif project.status == 'ingesting' or project.status == 'parsing' or project.status == 'embedding' %}
+            <span class="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-semibold text-yellow-700 ring-1 ring-inset ring-yellow-200">
+              <span class="h-1.5 w-1.5 rounded-full bg-yellow-500 animate-pulse"></span>
+              {{ project.status|capitalize }}
+            </span>
+          {% elif project.status == 'error' %}
+            <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200">
+              <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+              Error
+            </span>
+          {% else %}
+            <span class="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-500 ring-1 ring-inset ring-gray-200">
+              <span class="h-1.5 w-1.5 rounded-full bg-gray-400"></span>
+              {{ project.status|capitalize if project.status else 'Pending' }}
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Stats row -->
+        <div class="flex items-center gap-4 text-sm text-gray-500">
+          <div class="flex items-center gap-1.5">
+            <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
+            </svg>
+            <span class="font-medium">{{ project.total_files }}</span> files
+          </div>
+          <div class="flex items-center gap-1.5">
+            <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z"/>
+            </svg>
+            <span class="font-medium">{{ project.total_chunks }}</span> chunks
+          </div>
+        </div>
+
+        <!-- Languages -->
+        {% if project.languages %}
+          {% set langs = project.languages | from_json if project.languages is string else project.languages %}
+          {% if langs %}
+          <div class="flex flex-wrap gap-1.5 mt-3">
+            {% for lang in langs if lang %}
+            <span class="inline-block rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-200">{{ lang }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-12 text-center">
+    <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"/>
+    </svg>
+    <h3 class="mt-4 text-sm font-semibold text-gray-900">No repositories yet</h3>
+    <p class="mt-1 text-sm text-gray-500">Get started by ingesting your first codebase.</p>
+    <a href="/ingest" class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+      Ingest Repository
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Two-Column Layout: Recent Queries + Agent Activity ───────────────── -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+
+  <!-- Recent Queries ──────────────────────────────────────────────────── -->
+  <div>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-gray-900">Recent Queries</h2>
+      <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Latest {{ recent_queries|length }}</span>
+    </div>
+
+    {% if recent_queries %}
+    <div class="rounded-2xl bg-white shadow ring-1 ring-gray-100 overflow-hidden">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead>
+          <tr class="bg-gray-50/60">
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Query</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Project</th>
+            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Confidence</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Time</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Date</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for q in recent_queries %}
+          <tr class="hover:bg-indigo-50/30 transition-colors cursor-pointer" onclick="window.location='/query/{{ q.id }}'">
+            <td class="px-4 py-3">
+              <a href="/query/{{ q.id }}" class="text-sm font-medium text-gray-900 hover:text-indigo-700 transition-colors line-clamp-1" title="{{ q.query_text }}">
+                {{ q.query_text[:60] }}{% if q.query_text|length > 60 %}...{% endif %}
+              </a>
+            </td>
+            <td class="px-4 py-3 hidden sm:table-cell">
+              <span class="inline-flex items-center rounded-md bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-200">
+                {{ q.project_name }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if q.confidence_score is not none %}
+                {% set conf_pct = (q.confidence_score * 100)|int %}
+                {% if conf_pct >= 80 %}
+                  <span class="inline-flex items-center rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-bold text-green-700 ring-1 ring-inset ring-green-200">{{ conf_pct }}%</span>
+                {% elif conf_pct >= 50 %}
+                  <span class="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-0.5 text-xs font-bold text-yellow-700 ring-1 ring-inset ring-yellow-200">{{ conf_pct }}%</span>
+                {% else %}
+                  <span class="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-bold text-red-700 ring-1 ring-inset ring-red-200">{{ conf_pct }}%</span>
+                {% endif %}
+              {% else %}
+                <span class="text-xs text-gray-300">--</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right hidden md:table-cell">
+              {% if q.processing_time_ms is not none %}
+                <span class="text-xs font-mono text-gray-500">{{ "%.0f"|format(q.processing_time_ms) }}ms</span>
+              {% else %}
+                <span class="text-xs text-gray-300">--</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-right hidden lg:table-cell">
+              <span class="text-xs text-gray-400">{{ q.created_at[:16] if q.created_at else '' }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+      <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/>
+      </svg>
+      <p class="mt-3 text-sm text-gray-500">No queries yet. Start a conversation to see results here.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Agent Activity Feed ─────────────────────────────────────────────── -->
+  <div>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-gray-900">Agent Activity Feed</h2>
+      <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Latest {{ recent_traces|length }} steps</span>
+    </div>
+
+    {% if recent_traces %}
+    <div class="rounded-2xl bg-white shadow ring-1 ring-gray-100 p-5 max-h-[600px] overflow-y-auto">
+      <div class="relative">
+        <!-- Timeline line -->
+        <div class="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-indigo-300 via-violet-300 to-gray-200"></div>
+
+        <div class="space-y-4">
+          {% for trace in recent_traces %}
+          <div class="relative flex gap-4 group">
+            <!-- Timeline dot -->
+            <div class="relative z-10 flex-shrink-0 mt-1">
+              {% if trace.status == 'success' %}
+                <div class="h-[10px] w-[10px] rounded-full bg-green-500 ring-4 ring-green-50 mt-1"></div>
+              {% elif trace.status == 'error' %}
+                <div class="h-[10px] w-[10px] rounded-full bg-red-500 ring-4 ring-red-50 mt-1"></div>
+              {% elif trace.status == 'running' %}
+                <div class="h-[10px] w-[10px] rounded-full bg-yellow-500 ring-4 ring-yellow-50 animate-pulse mt-1"></div>
+              {% else %}
+                <div class="h-[10px] w-[10px] rounded-full bg-indigo-400 ring-4 ring-indigo-50 mt-1"></div>
+              {% endif %}
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0 rounded-xl bg-gray-50 group-hover:bg-indigo-50/40 p-3 transition-colors duration-200">
+              <!-- Top row: state + status + duration -->
+              <div class="flex items-center gap-2 flex-wrap mb-1.5">
+                <!-- State label -->
+                {% set state_colors = {
+                  'PLANNING': 'bg-blue-100 text-blue-700 ring-blue-200',
+                  'RETRIEVING': 'bg-cyan-100 text-cyan-700 ring-cyan-200',
+                  'RERANKING': 'bg-teal-100 text-teal-700 ring-teal-200',
+                  'GENERATING': 'bg-violet-100 text-violet-700 ring-violet-200',
+                  'EVALUATING': 'bg-amber-100 text-amber-700 ring-amber-200',
+                  'SELF_CORRECTING': 'bg-orange-100 text-orange-700 ring-orange-200',
+                  'COMPLETE': 'bg-green-100 text-green-700 ring-green-200',
+                  'ERROR': 'bg-red-100 text-red-700 ring-red-200'
+                } %}
+                {% set sc = state_colors.get(trace.state, 'bg-gray-100 text-gray-700 ring-gray-200') %}
+                <span class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold ring-1 ring-inset {{ sc }}">
+                  {{ trace.state }}
+                </span>
+
+                <!-- Status badge -->
+                {% if trace.status == 'success' %}
+                  <span class="inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold text-green-600 ring-1 ring-inset ring-green-200">OK</span>
+                {% elif trace.status == 'error' %}
+                  <span class="inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 ring-1 ring-inset ring-red-200">ERR</span>
+                {% elif trace.status == 'running' %}
+                  <span class="inline-flex items-center rounded-full bg-yellow-50 px-1.5 py-0.5 text-[10px] font-semibold text-yellow-600 ring-1 ring-inset ring-yellow-200">RUN</span>
+                {% endif %}
+
+                <!-- Duration -->
+                {% if trace.duration_ms is not none %}
+                <span class="text-[10px] font-mono text-gray-400 ml-auto">{{ "%.0f"|format(trace.duration_ms) }}ms</span>
+                {% endif %}
+              </div>
+
+              <!-- Query context -->
+              {% if trace.query_text %}
+              <p class="text-xs text-gray-400 mb-1 truncate" title="{{ trace.query_text }}">
+                <span class="font-medium text-gray-500">Q:</span> {{ trace.query_text[:50] }}{% if trace.query_text|length > 50 %}...{% endif %}
+              </p>
+              {% endif %}
+
+              <!-- Reasoning -->
+              {% if trace.reasoning %}
+              <p class="text-sm text-gray-600 line-clamp-2" title="{{ trace.reasoning }}">
+                {{ trace.reasoning[:120] }}{% if trace.reasoning|length > 120 %}...{% endif %}
+              </p>
+              {% endif %}
+
+              <!-- Timestamp -->
+              <p class="text-[10px] text-gray-300 mt-1.5">{{ trace.created_at[:19] if trace.created_at else '' }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 p-8 text-center">
+      <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0 1 12 15a9.065 9.065 0 0 0-6.23.693L5 14.5m14.8.8 1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0 1 12 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"/>
+      </svg>
+      <p class="mt-3 text-sm text-gray-500">No agent activity yet. Submit a query to see the agentic workflow here.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
