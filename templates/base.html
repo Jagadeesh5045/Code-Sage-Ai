@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CodeSage AI{% endblock %} | Agentic RAG System</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50:  '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                            950: '#1e1b4b',
+                        },
+                        accent: {
+                            50:  '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                            950: '#2e1065',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* ── Sidebar link hover slide ── */
+        .nav-link {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 0 4px 4px 0;
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+        .nav-link:hover::before,
+        .nav-link.active::before {
+            transform: scaleY(1);
+        }
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        /* ── Pulse dot for system status ── */
+        @keyframes pulse-ring {
+            0%   { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .status-dot-ring {
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        /* ── Gradient text ── */
+        .gradient-text {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* ── Card hover lift ── */
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.15),
+                        0 4px 10px -6px rgba(99, 102, 241, 0.1);
+        }
+
+        /* ── Fade-in animation ── */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeInUp 0.4s ease-out forwards;
+        }
+
+        /* ── Mobile sidebar toggle ── */
+        .sidebar-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-drawer {
+            transition: transform 0.3s ease;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+
+<body class="h-full bg-slate-100 font-sans text-slate-800 antialiased">
+
+    <div class="flex h-full min-h-screen">
+
+        <!-- ════════════════════════════════════════════════════════════════
+             SIDEBAR
+             ════════════════════════════════════════════════════════════════ -->
+
+        <!-- Mobile overlay -->
+        <div id="sidebar-overlay"
+             class="sidebar-overlay fixed inset-0 z-30 bg-black/50 opacity-0 pointer-events-none lg:hidden"
+             onclick="toggleSidebar()"></div>
+
+        <!-- Sidebar panel -->
+        <aside id="sidebar"
+               class="sidebar-drawer fixed inset-y-0 left-0 z-40 w-64 -translate-x-full
+                      lg:translate-x-0 lg:static lg:z-auto
+                      flex flex-col bg-slate-900 text-slate-300 shadow-xl">
+
+            <!-- Brand -->
+            <div class="flex items-center gap-3 px-5 py-5 border-b border-slate-700/60">
+                <div class="flex items-center justify-center w-10 h-10 rounded-lg
+                            bg-gradient-to-br from-primary-500 to-accent-500 shadow-lg shadow-primary-500/20">
+                    <i data-lucide="brain-circuit" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="text-base font-bold text-white tracking-tight">CodeSage AI</h1>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wide uppercase">Agentic RAG System</p>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+
+                <p class="px-3 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Main
+                </p>
+
+                <a href="/"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="home" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Dashboard
+                </a>
+
+                <a href="/chat"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/chat' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="message-square" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Chat
+                </a>
+
+                <p class="px-3 pt-5 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Data
+                </p>
+
+                <a href="/ingest"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/ingest' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="upload" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Ingest
+                </a>
+
+                <a href="/repositories"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/repositories' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="folder" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Repositories
+                </a>
+
+                <p class="px-3 pt-5 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+                    Insights
+                </p>
+
+                <a href="/analytics"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/analytics' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="bar-chart-2" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Analytics
+                </a>
+
+                <a href="/evaluation"
+                   class="nav-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                          {% if request.path == '/evaluation' %}active text-white{% else %}text-slate-300 hover:text-white{% endif %}">
+                    <i data-lucide="check-circle" class="w-[18px] h-[18px] flex-shrink-0"></i>
+                    Evaluation
+                </a>
+
+            </nav>
+
+            <!-- Sidebar footer -->
+            <div class="px-4 py-4 border-t border-slate-700/60">
+                <div class="flex items-center gap-3 px-2 py-2 rounded-lg bg-slate-800/60">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-full
+                                bg-gradient-to-br from-primary-600 to-accent-600 text-white text-xs font-bold">
+                        AI
+                    </div>
+                    <div class="leading-tight">
+                        <p class="text-xs font-semibold text-slate-200">Kimi K2.5</p>
+                        <p class="text-[10px] text-slate-400">via OpenRouter</p>
+                    </div>
+                    <div class="ml-auto relative">
+                        <span class="block w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                        <span class="absolute inset-0 rounded-full bg-emerald-400 status-dot-ring"></span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ════════════════════════════════════════════════════════════════
+             MAIN CONTENT AREA
+             ════════════════════════════════════════════════════════════════ -->
+        <div class="flex-1 flex flex-col min-w-0">
+
+            <!-- Top header bar -->
+            <header class="sticky top-0 z-20 flex items-center justify-between
+                           h-16 px-4 sm:px-6 lg:px-8
+                           bg-white/80 backdrop-blur-md border-b border-slate-200/80 shadow-sm">
+
+                <!-- Left: mobile toggle + breadcrumb -->
+                <div class="flex items-center gap-3">
+                    <!-- Mobile menu button -->
+                    <button onclick="toggleSidebar()"
+                            class="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg
+                                   hover:bg-slate-100 text-slate-500 transition">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 leading-tight gradient-text">
+                            CodeSage AI
+                        </h2>
+                        <p class="text-[11px] text-slate-400 font-medium leading-none hidden sm:block">
+                            Generative AI for Programming Course &middot; Agentic RAG System
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Right: status + info -->
+                <div class="flex items-center gap-3">
+                    <!-- System status badge -->
+                    <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full
+                                bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium">
+                        <span class="relative flex h-2 w-2">
+                            <span class="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 status-dot-ring"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        System Online
+                    </div>
+
+                    <!-- Agent pipeline badge -->
+                    <div class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                                bg-primary-50 border border-primary-200 text-primary-700 text-xs font-medium">
+                        <i data-lucide="workflow" class="w-3.5 h-3.5"></i>
+                        Agent Pipeline Active
+                    </div>
+
+                    <!-- Notification bell -->
+                    <button class="relative flex items-center justify-center w-9 h-9 rounded-lg
+                                   hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
+                        <i data-lucide="bell" class="w-[18px] h-[18px]"></i>
+                        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary-500 ring-2 ring-white"></span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page content -->
+            <main class="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3
+                           border-t border-slate-200/80 bg-white/60 backdrop-blur-sm">
+                <p class="text-[11px] text-slate-400">
+                    <span class="font-semibold text-slate-500">CodeSage AI</span>
+                    &mdash; MSc Dissertation Project
+                </p>
+                <p class="text-[11px] text-slate-400 hidden sm:block">
+                    Powered by <span class="font-medium text-primary-500">Agentic RAG</span>
+                    &amp; <span class="font-medium text-accent-500">OpenRouter</span>
+                </p>
+            </footer>
+        </div>
+
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SCRIPTS
+         ════════════════════════════════════════════════════════════════ -->
+
+    <script>
+        // ── Initialise Lucide icons ──
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+
+        // ── Mobile sidebar toggle ──
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            const isOpen  = !sidebar.classList.contains('-translate-x-full');
+
+            if (isOpen) {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+                overlay.classList.remove('opacity-100', 'pointer-events-auto');
+            } else {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                overlay.classList.add('opacity-100', 'pointer-events-auto');
+            }
+        }
+
+        // ── Close sidebar on Escape ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const sidebar = document.getElementById('sidebar');
+                if (!sidebar.classList.contains('-translate-x-full')) {
+                    toggleSidebar();
+                }
+            }
+        });
+
+        // ── Utility: show a toast notification ──
+        window.showToast = function(message, type = 'info') {
+            const colors = {
+                info:    'bg-primary-600',
+                success: 'bg-emerald-600',
+                error:   'bg-red-600',
+                warning: 'bg-amber-500',
+            };
+
+            const toast = document.createElement('div');
+            toast.className = `
+                fixed bottom-6 right-6 z-50 flex items-center gap-2
+                px-5 py-3 rounded-xl shadow-2xl text-white text-sm font-medium
+                ${colors[type] || colors.info}
+                animate-fade-in
+            `;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}"
+                   class="w-4 h-4 flex-shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            document.body.appendChild(toast);
+            lucide.createIcons({ nodes: [toast] });
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+    </script>
+
+    {% block scripts %}{% endblock %}
+
+</body>
+</html>
