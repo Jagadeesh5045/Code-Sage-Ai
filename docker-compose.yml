@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  codesage:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./chromadb_data:/app/chromadb_data
+      - codesage_db:/app/data
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - PARALLEL_API_KEY=${PARALLEL_API_KEY}
+      - LANGSMITH_API_KEY=${LANGSMITH_API_KEY}
+      - LANGSMITH_PROJECT=${LANGSMITH_PROJECT:-codesage-ai}
+      - VECTOR_STORE_BACKEND=chromadb
+      - FLASK_DEBUG=False
+    restart: unless-stopped
+
+volumes:
+  codesage_db:

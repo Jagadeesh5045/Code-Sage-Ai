@@ -1,0 +1,19 @@
+flask>=2.3.0
+sentence-transformers>=2.2.0
+rank-bm25>=0.2.2
+requests>=2.31.0
+gitpython>=3.1.40
+markdown>=3.5.0
+pygments>=2.17.0
+numpy>=1.24.0
+werkzeug>=2.3.0
+chromadb>=0.4.0
+tree-sitter>=0.21.0,<0.23.0
+tree-sitter-languages>=1.10.0
+typing_extensions>=4.0.0
+datasets>=2.14.0
+torch>=2.0.0
+# Optional: install on Python 3.9+ for native LangGraph & LangSmith tracing
+# langgraph>=0.2.0
+# langchain-core>=0.2.0
+# langsmith>=0.1.0

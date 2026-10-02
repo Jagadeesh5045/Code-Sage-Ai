@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/ venv/ env/
+
+# Secrets
+.env
+
+# Runtime data
+*.db
+*.log
+uploads/
+chromadb_data/
+models/
+
+# OS
+.DS_Store
