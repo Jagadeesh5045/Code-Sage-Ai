@@ -1,0 +1,1 @@
+# CLI File Tool\nCommand-line utility for file search, text search, and statistics.

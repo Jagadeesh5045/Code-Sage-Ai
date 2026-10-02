@@ -1,0 +1,1 @@
+# REST API Service\nUser management API with JWT authentication, rate limiting, and middleware.

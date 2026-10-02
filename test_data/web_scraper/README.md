@@ -1,0 +1,1 @@
+# Web Scraper\nConfigurable web scraper with crawling, content extraction, and rate limiting.

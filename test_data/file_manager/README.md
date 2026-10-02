@@ -1,0 +1,1 @@
+# File Manager\nFile and directory management with search, copy, move, and tree display.

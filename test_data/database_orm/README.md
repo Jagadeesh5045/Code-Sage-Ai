@@ -1,0 +1,1 @@
+# Database ORM\nCustom lightweight ORM for SQLite with model base class, CRUD, and query builder.
