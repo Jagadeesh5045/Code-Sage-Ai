@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Query Detail{% endblock %}
+
+{% block head %}
+<style>
+    /* Formatted JSON styling */
+    .json-key { color: #6366f1; font-weight: 600; }
+    .json-string { color: #059669; }
+    .json-number { color: #d97706; }
+    .json-boolean { color: #dc2626; }
+    .json-null { color: #64748b; font-style: italic; }
+
+    /* Confidence gauge arc */
+    .confidence-ring {
+        transition: stroke-dashoffset 1s ease-out;
+    }
+
+    /* Trace connector line */
+    .trace-connector {
+        background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 100%);
+    }
+
+    /* Collapsible animation */
+    .collapsible-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.35s ease;
+    }
+    .collapsible-content.expanded {
+        max-height: 2000px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="animate-fade-in">
+
+    <!-- ── Back Button ── -->
+    <div class="mb-6">
+        <a href="/chat/{{ query.project_id }}"
+           class="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-primary-600 transition">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            Back to Chat
+        </a>
+    </div>
+
+    <!-- ── Query Header ── -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+
+            <!-- Query Text -->
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="help-circle" class="w-5 h-5 text-primary-500 flex-shrink-0"></i>
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Query</span>
+                </div>
+                <h1 class="text-xl font-bold text-slate-800 leading-snug mb-4">
+                    {{ query.query_text }}
+                </h1>
+
+                <!-- Meta Badges Row -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Project Badge -->
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold
+                                 bg-primary-50 text-primary-700 border border-primary-200">
+                        <i data-lucide="folder" class="w-3 h-3"></i>
+                        {{ project.name }}
+                    </span>
+
+                    <!-- Model Badge -->
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold
+                                 bg-accent-50 text-accent-700 border border-accent-200">
+                        <i data-lucide="cpu" class="w-3 h-3"></i>
+                        {{ query.model_used|default('N/A') }}
+                    </span>
+
+                    <!-- Strategy Badge -->
+                    {% if query.retrieval_strategy %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold
+                                 {% if query.retrieval_strategy == 'hybrid' %}bg-violet-50 text-violet-700 border border-violet-200
+                                 {% elif query.retrieval_strategy == 'dense' %}bg-blue-50 text-blue-700 border border-blue-200
+                                 {% elif query.retrieval_strategy == 'sparse' %}bg-amber-50 text-amber-700 border border-amber-200
+                                 {% else %}bg-slate-50 text-slate-600 border border-slate-200{% endif %}">
+                        <i data-lucide="git-branch" class="w-3 h-3"></i>
+                        {{ query.retrieval_strategy }}
+                    </span>
+                    {% endif %}
+
+                    <!-- Processing Time -->
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold
+                                 bg-slate-50 text-slate-600 border border-slate-200">
+                        <i data-lucide="timer" class="w-3 h-3"></i>
+                        {{ query.processing_time_ms|default(0) }}ms
+                    </span>
+
+                    <!-- Date -->
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold
+                                 bg-slate-50 text-slate-600 border border-slate-200">
+                        <i data-lucide="calendar" class="w-3 h-3"></i>
+                        {{ query.created_at|default('N/A') }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Confidence Gauge -->
+            <div class="flex-shrink-0 flex flex-col items-center">
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Confidence</p>
+                <div class="relative w-24 h-24">
+                    <svg class="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
+                        <!-- Background ring -->
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+                        <!-- Score ring -->
+                        <circle cx="50" cy="50" r="42" fill="none"
+                                stroke="url(#gaugeGrad)" stroke-width="8" stroke-linecap="round"
+                                stroke-dasharray="{{ 263.9 }}"
+                                stroke-dashoffset="{{ 263.9 - (263.9 * (query.confidence_score|default(0))) }}"
+                                class="confidence-ring"/>
+                        <defs>
+                            <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#6366f1"/>
+                                <stop offset="100%" stop-color="#8b5cf6"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-xl font-bold text-slate-800">
+                            {{ (query.confidence_score|default(0) * 100)|round(0)|int }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Two-Column Layout ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        <!-- ════════ LEFT COLUMN: Response & Citations (3/5 = 60%) ════════ -->
+        <div class="lg:col-span-3 space-y-6">
+
+            <!-- Response Card -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-100 text-primary-600">
+                        <i data-lucide="bot" class="w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-sm font-bold text-slate-700">AI Response</h2>
+                </div>
+                <div class="p-6 prose prose-sm prose-slate max-w-none
+                            prose-headings:font-bold prose-headings:text-slate-800
+                            prose-code:text-primary-600 prose-code:bg-primary-50 prose-code:px-1.5 prose-code:py-0.5
+                            prose-code:rounded prose-code:font-mono prose-code:text-[13px]
+                            prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:rounded-xl
+                            prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline">
+                    {% if query.response_html %}
+                        {{ query.response_html|safe }}
+                    {% else %}
+                        <p>{{ query.response_text|default('No response generated.') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Citations / Sources Card -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-accent-100 text-accent-600">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-sm font-bold text-slate-700">Retrieved Sources</h2>
+                </div>
+                <div id="sources-container" class="p-6">
+                    <p class="text-sm text-slate-400 italic">Loading sources...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ════════ RIGHT COLUMN: Agent Trace (2/5 = 40%) ════════ -->
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden sticky top-24">
+
+                <div class="flex items-center gap-2 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                    <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-100 text-emerald-600">
+                        <i data-lucide="workflow" class="w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-sm font-bold text-slate-700">Agent Trace</h2>
+                    <span class="ml-auto text-[11px] font-semibold text-slate-400">
+                        {{ traces|length }} step{{ 's' if traces|length != 1 else '' }}
+                    </span>
+                </div>
+
+                <div class="p-4 max-h-[calc(100vh-14rem)] overflow-y-auto">
+                    {% if traces and traces|length > 0 %}
+                    <div class="space-y-0">
+                        {% for trace in traces %}
+                        <div class="relative pl-8">
+
+                            <!-- Vertical connector line -->
+                            {% if not loop.last %}
+                            <div class="absolute left-[13px] top-8 bottom-0 w-0.5 trace-connector"></div>
+                            {% endif %}
+
+                            <!-- Step dot -->
+                            <div class="absolute left-0 top-1 w-7 h-7 rounded-full flex items-center justify-center
+                                        text-[11px] font-bold text-white
+                                        {% if trace.status == 'completed' %}bg-gradient-to-br from-emerald-500 to-emerald-600
+                                        {% elif trace.status == 'error' %}bg-gradient-to-br from-red-500 to-red-600
+                                        {% elif trace.status == 'running' %}bg-gradient-to-br from-amber-500 to-amber-600 animate-pulse
+                                        {% else %}bg-gradient-to-br from-primary-500 to-accent-500{% endif %}">
+                                {{ trace.step_number }}
+                            </div>
+
+                            <!-- Step content -->
+                            <div class="pb-5">
+                                <!-- State label and status -->
+                                <div class="flex items-center gap-2 mb-1.5">
+                                    <h4 class="text-sm font-bold text-slate-800">{{ trace.state }}</h4>
+
+                                    {% if trace.status == 'completed' %}
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-600">
+                                        Completed
+                                    </span>
+                                    {% elif trace.status == 'error' %}
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-600">
+                                        Error
+                                    </span>
+                                    {% elif trace.status == 'running' %}
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600">
+                                        Running
+                                    </span>
+                                    {% else %}
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-50 text-slate-500">
+                                        {{ trace.status|default('N/A') }}
+                                    </span>
+                                    {% endif %}
+
+                                    {% if trace.duration_ms %}
+                                    <span class="text-[10px] text-slate-400 font-medium">{{ trace.duration_ms }}ms</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Reasoning -->
+                                {% if trace.reasoning %}
+                                <div class="mb-2 p-3 rounded-lg bg-primary-50/60 border border-primary-100">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider text-primary-500 mb-1">
+                                        AI Reasoning
+                                    </p>
+                                    <p class="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{{ trace.reasoning }}</p>
+                                </div>
+                                {% endif %}
+
+                                <!-- Input Data (Collapsible) -->
+                                {% if trace.input_data %}
+                                <div class="mb-1.5">
+                                    <button onclick="toggleCollapsible(this)"
+                                            class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500
+                                                   hover:text-primary-600 transition">
+                                        <i data-lucide="chevron-right" class="w-3 h-3 transition-transform collapsible-icon"></i>
+                                        Input Data
+                                    </button>
+                                    <div class="collapsible-content mt-1">
+                                        <pre class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] leading-relaxed
+                                                    font-mono overflow-x-auto max-h-60 text-slate-700 json-display"
+                                             data-json="{{ trace.input_data|e }}"></pre>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Output Data (Collapsible) -->
+                                {% if trace.output_data %}
+                                <div>
+                                    <button onclick="toggleCollapsible(this)"
+                                            class="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500
+                                                   hover:text-primary-600 transition">
+                                        <i data-lucide="chevron-right" class="w-3 h-3 transition-transform collapsible-icon"></i>
+                                        Output Data
+                                    </button>
+                                    <div class="collapsible-content mt-1">
+                                        <pre class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] leading-relaxed
+                                                    font-mono overflow-x-auto max-h-60 text-slate-700 json-display"
+                                             data-json="{{ trace.output_data|e }}"></pre>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center py-10 text-center">
+                        <i data-lucide="search-x" class="w-8 h-8 text-slate-300 mb-3"></i>
+                        <p class="text-sm text-slate-400">No agent trace recorded for this query.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ── Parse and render sources ──
+    var sourcesContainer = document.getElementById('sources-container');
+    var sourcesRaw = {{ query.sources_json|default('null')|tojson }};
+    var sources = [];
+
+    if (sourcesRaw) {
+        try {
+            sources = typeof sourcesRaw === 'string' ? JSON.parse(sourcesRaw) : sourcesRaw;
+        } catch (e) {
+            sources = [];
+        }
+    }
+
+    if (Array.isArray(sources) && sources.length > 0) {
+        var html = '<div class="space-y-3">';
+        sources.forEach(function(src, idx) {
+            var fileName = src.file_path || src.file || src.source || ('Source ' + (idx + 1));
+            var score = src.score || src.similarity || src.relevance || null;
+            var snippet = src.content || src.chunk || src.text || '';
+            var truncSnippet = snippet.length > 200 ? snippet.substring(0, 200) + '...' : snippet;
+
+            html += '<div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-primary-200 transition">';
+            html += '  <div class="flex items-center justify-between mb-2">';
+            html += '    <div class="flex items-center gap-2">';
+            html += '      <span class="flex items-center justify-center w-6 h-6 rounded-md bg-primary-100 text-primary-600 text-[11px] font-bold">' + (idx + 1) + '</span>';
+            html += '      <span class="text-sm font-semibold text-slate-700 font-mono">' + escapeHtml(fileName) + '</span>';
+            html += '    </div>';
+            if (score !== null) {
+                var pct = (parseFloat(score) * 100).toFixed(1);
+                html += '  <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-primary-50 text-primary-600">' + pct + '% match</span>';
+            }
+            html += '  </div>';
+            if (truncSnippet) {
+                html += '<pre class="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap font-mono bg-white p-3 rounded-lg border border-slate-100">' + escapeHtml(truncSnippet) + '</pre>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        sourcesContainer.innerHTML = html;
+    } else {
+        sourcesContainer.innerHTML = '<div class="flex flex-col items-center py-6 text-center">' +
+            '<p class="text-sm text-slate-400 italic">No sources were retrieved for this query.</p></div>';
+    }
+
+    // ── Format JSON in trace displays ──
+    document.querySelectorAll('.json-display').forEach(function(el) {
+        var raw = el.getAttribute('data-json');
+        if (!raw) return;
+        try {
+            var parsed = JSON.parse(raw);
+            el.innerHTML = syntaxHighlight(JSON.stringify(parsed, null, 2));
+        } catch (e) {
+            el.textContent = raw;
+        }
+    });
+
+    // Re-init Lucide icons for dynamically created content
+    lucide.createIcons();
+});
+
+// ── Collapsible toggle ──
+function toggleCollapsible(button) {
+    var content = button.nextElementSibling;
+    var icon = button.querySelector('.collapsible-icon');
+
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        icon.style.transform = 'rotate(0deg)';
+    } else {
+        content.classList.add('expanded');
+        icon.style.transform = 'rotate(90deg)';
+    }
+}
+
+// ── HTML escape ──
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(text));
+    return div.innerHTML;
+}
+
+// ── JSON syntax highlighter ──
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        function(match) {
+            var cls = 'json-number';
+            if (/^"/.test(match)) {
+                if (/:$/.test(match)) {
+                    cls = 'json-key';
+                } else {
+                    cls = 'json-string';
+                }
+            } else if (/true|false/.test(match)) {
+                cls = 'json-boolean';
+            } else if (/null/.test(match)) {
+                cls = 'json-null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+        }
+    );
+}
+</script>
+{% endblock %}
