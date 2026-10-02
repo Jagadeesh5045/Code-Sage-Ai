@@ -1,0 +1,963 @@
+{% extends "base.html" %}
+
+{% block title %}Ingest Repository{% endblock %}
+
+{% block head %}
+<style>
+    /* ── Tab active indicator ── */
+    .tab-btn {
+        position: relative;
+        transition: all 0.25s ease;
+    }
+    .tab-btn::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 50%;
+        width: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        border-radius: 2px;
+        transition: width 0.25s ease, left 0.25s ease;
+    }
+    .tab-btn.active::after {
+        width: 100%;
+        left: 0;
+    }
+    .tab-btn.active {
+        color: #6366f1;
+    }
+
+    /* ── Code textarea styling ── */
+    .code-editor {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        tab-size: 4;
+    }
+
+    /* ── Drag-and-drop zone ── */
+    .drop-zone {
+        transition: all 0.25s ease;
+    }
+    .drop-zone.drag-over {
+        border-color: #6366f1;
+        background: rgba(99, 102, 241, 0.05);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    /* ── Progress pipeline ── */
+    .pipeline-step {
+        transition: all 0.35s ease;
+    }
+    .pipeline-step.completed .step-icon {
+        background: #059669;
+        border-color: #059669;
+        color: #fff;
+    }
+    .pipeline-step.active .step-icon {
+        background: #4f46e5;
+        border-color: #4f46e5;
+        color: #fff;
+        animation: stepPulse 1.5s infinite;
+    }
+    .pipeline-step.error .step-icon {
+        background: #dc2626;
+        border-color: #dc2626;
+        color: #fff;
+    }
+    .pipeline-step.pending .step-icon {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #94a3b8;
+    }
+    .pipeline-connector {
+        transition: background 0.35s ease;
+    }
+    .pipeline-connector.completed {
+        background: #059669 !important;
+    }
+    .pipeline-connector.active {
+        background: linear-gradient(90deg, #059669, #4f46e5) !important;
+    }
+
+    @keyframes stepPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+        50%      { box-shadow: 0 0 0 8px rgba(79, 70, 229, 0); }
+    }
+
+    /* ── Log messages ── */
+    .log-entry {
+        animation: fadeInUp 0.25s ease-out forwards;
+    }
+    .log-entry.log-info    { border-left-color: #6366f1; }
+    .log-entry.log-success { border-left-color: #059669; }
+    .log-entry.log-error   { border-left-color: #dc2626; }
+    .log-entry.log-warning { border-left-color: #d97706; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6 animate-fade-in">
+
+    <!-- ═══════════════════ PAGE HEADER ═══════════════════ -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">
+                <span class="gradient-text">Ingest Repository</span>
+            </h1>
+            <p class="text-sm text-slate-500 mt-1">
+                Add code to CodeSage AI for analysis, embedding, and intelligent querying.
+            </p>
+        </div>
+        <a href="/repositories"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600
+                  bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300
+                  transition shadow-sm self-start">
+            <i data-lucide="folder" class="w-4 h-4"></i>
+            View Repositories
+        </a>
+    </div>
+
+    <!-- ═══════════════════ INGESTION CARD ═══════════════════ -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+
+        <!-- ── Tab Navigation ── -->
+        <div class="flex border-b border-slate-200 bg-slate-50/50">
+            <button type="button" onclick="switchTab('paste')" id="tab-paste"
+                    class="tab-btn flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-semibold
+                           text-slate-500 hover:text-primary-600 transition active">
+                <i data-lucide="code-2" class="w-4 h-4"></i>
+                <span>Paste Code</span>
+            </button>
+            <button type="button" onclick="switchTab('zip')" id="tab-zip"
+                    class="tab-btn flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-semibold
+                           text-slate-500 hover:text-primary-600 transition">
+                <i data-lucide="archive" class="w-4 h-4"></i>
+                <span>Upload ZIP</span>
+            </button>
+            <button type="button" onclick="switchTab('github')" id="tab-github"
+                    class="tab-btn flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-semibold
+                           text-slate-500 hover:text-primary-600 transition">
+                <i data-lucide="github" class="w-4 h-4"></i>
+                <span>GitHub URL</span>
+            </button>
+        </div>
+
+        <!-- ── Tab Panels ── -->
+        <div class="p-6 sm:p-8">
+
+            <!-- ──────────────── TAB 1: PASTE CODE ──────────────── -->
+            <form id="panel-paste" class="tab-panel space-y-5" onsubmit="return handleSubmit(event, 'paste')">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Project Name <span class="text-red-400">*</span>
+                        </label>
+                        <input type="text" name="project_name" required placeholder="e.g. my-flask-app"
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Filename
+                        </label>
+                        <input type="text" name="filename" value="main.py" placeholder="main.py"
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+                    <textarea name="description" rows="2" placeholder="Brief description of the project..."
+                              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                     text-slate-800 placeholder-slate-400 resize-none
+                                     focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                     transition"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                        Source Code <span class="text-red-400">*</span>
+                    </label>
+                    <textarea name="code" required rows="14"
+                              placeholder="# Paste your Python / JavaScript / Java code here..."
+                              class="code-editor w-full px-4 py-3 rounded-xl border border-slate-700 bg-slate-900
+                                     text-emerald-300 placeholder-slate-500 resize-y
+                                     focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500
+                                     transition"></textarea>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white
+                               bg-gradient-to-r from-primary-600 to-accent-600
+                               hover:from-primary-700 hover:to-accent-700
+                               shadow-lg shadow-primary-500/20 transition transform hover:scale-[1.02]
+                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        id="btn-paste">
+                    <i data-lucide="upload" class="w-4 h-4"></i>
+                    Ingest Code
+                </button>
+            </form>
+
+            <!-- ──────────────── TAB 2: UPLOAD ZIP ──────────────── -->
+            <form id="panel-zip" class="tab-panel space-y-5 hidden" onsubmit="return handleSubmit(event, 'zip')">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Project Name <span class="text-red-400">*</span>
+                        </label>
+                        <input type="text" name="project_name" required placeholder="e.g. my-flask-app"
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+                        <input type="text" name="description" placeholder="Brief description..."
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                </div>
+
+                <!-- Drop zone -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                        ZIP Archive <span class="text-red-400">*</span>
+                    </label>
+                    <div id="drop-zone"
+                         class="drop-zone relative flex flex-col items-center justify-center gap-3
+                                px-6 py-10 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50
+                                cursor-pointer hover:border-primary-400 hover:bg-primary-50/30 transition">
+                        <input type="file" name="zip_file" accept=".zip" id="zip-input" required
+                               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                        <div class="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-100 text-primary-600">
+                            <i data-lucide="upload-cloud" class="w-7 h-7"></i>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-sm font-semibold text-slate-700" id="drop-zone-label">
+                                Drop your ZIP file here or click to browse
+                            </p>
+                            <p class="text-xs text-slate-400 mt-1">Accepts .zip files up to 50 MB</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white
+                               bg-gradient-to-r from-primary-600 to-accent-600
+                               hover:from-primary-700 hover:to-accent-700
+                               shadow-lg shadow-primary-500/20 transition transform hover:scale-[1.02]
+                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        id="btn-zip">
+                    <i data-lucide="archive" class="w-4 h-4"></i>
+                    Upload &amp; Ingest
+                </button>
+            </form>
+
+            <!-- ──────────────── TAB 3: GITHUB URL ──────────────── -->
+            <form id="panel-github" class="tab-panel space-y-5 hidden" onsubmit="return handleSubmit(event, 'github')">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                            Project Name <span class="text-red-400">*</span>
+                        </label>
+                        <input type="text" name="project_name" required placeholder="e.g. my-flask-app"
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+                        <input type="text" name="description" placeholder="Brief description..."
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+                        GitHub Repository URL <span class="text-red-400">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <i data-lucide="github" class="w-4 h-4 text-slate-400"></i>
+                        </div>
+                        <input type="url" name="github_url" required
+                               placeholder="https://github.com/user/repository"
+                               pattern="https?://github\.com/.+/.+"
+                               class="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm
+                                      text-slate-800 placeholder-slate-400
+                                      focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400
+                                      transition" />
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1.5">Public repositories only. Format: https://github.com/owner/repo</p>
+                </div>
+
+                <button type="submit"
+                        class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white
+                               bg-gradient-to-r from-primary-600 to-accent-600
+                               hover:from-primary-700 hover:to-accent-700
+                               shadow-lg shadow-primary-500/20 transition transform hover:scale-[1.02]
+                               disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                        id="btn-github">
+                    <i data-lucide="git-branch" class="w-4 h-4"></i>
+                    Clone &amp; Ingest
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════ INGESTION PROGRESS PANEL ═══════════════════ -->
+    <div id="progress-panel" class="hidden bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+
+        <!-- Panel header -->
+        <div class="flex items-center gap-3 px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-primary-100 text-primary-600">
+                <i data-lucide="cpu" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Ingestion Pipeline</h3>
+                <p class="text-xs text-slate-500" id="progress-subtitle">Processing your code...</p>
+            </div>
+            <div class="ml-auto" id="progress-spinner">
+                <svg class="w-5 h-5 animate-spin text-primary-500" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="p-6 sm:p-8 space-y-6">
+
+            <!-- ── Pipeline Steps ── -->
+            <div class="flex items-center justify-between">
+                <!-- Step 1: Extracting -->
+                <div class="pipeline-step flex flex-col items-center gap-2 pending" id="step-extracting">
+                    <div class="step-icon flex items-center justify-center w-11 h-11 rounded-full
+                                border-2 transition">
+                        <i data-lucide="file-search" class="w-5 h-5"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">Extracting</span>
+                </div>
+                <!-- Connector -->
+                <div class="pipeline-connector flex-1 h-0.5 bg-slate-200 mx-2 rounded-full" id="conn-1"></div>
+                <!-- Step 2: Parsing -->
+                <div class="pipeline-step flex flex-col items-center gap-2 pending" id="step-parsing">
+                    <div class="step-icon flex items-center justify-center w-11 h-11 rounded-full
+                                border-2 transition">
+                        <i data-lucide="scan-line" class="w-5 h-5"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">Parsing</span>
+                </div>
+                <!-- Connector -->
+                <div class="pipeline-connector flex-1 h-0.5 bg-slate-200 mx-2 rounded-full" id="conn-2"></div>
+                <!-- Step 3: Embedding -->
+                <div class="pipeline-step flex flex-col items-center gap-2 pending" id="step-embedding">
+                    <div class="step-icon flex items-center justify-center w-11 h-11 rounded-full
+                                border-2 transition">
+                        <i data-lucide="boxes" class="w-5 h-5"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">Embedding</span>
+                </div>
+                <!-- Connector -->
+                <div class="pipeline-connector flex-1 h-0.5 bg-slate-200 mx-2 rounded-full" id="conn-3"></div>
+                <!-- Step 4: Indexing -->
+                <div class="pipeline-step flex flex-col items-center gap-2 pending" id="step-indexing">
+                    <div class="step-icon flex items-center justify-center w-11 h-11 rounded-full
+                                border-2 transition">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500">Indexing</span>
+                </div>
+            </div>
+
+            <!-- ── Real-time Log Output ── -->
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="terminal" class="w-4 h-4 text-slate-400"></i>
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Live Logs</h4>
+                </div>
+                <div id="log-container"
+                     class="bg-slate-900 rounded-xl p-4 max-h-64 overflow-y-auto font-mono text-xs
+                            space-y-1.5 border border-slate-700">
+                    <p class="text-slate-500 italic">Waiting for pipeline to start...</p>
+                </div>
+            </div>
+
+            <!-- ── Success State (hidden by default) ── -->
+            <div id="ingest-success" class="hidden">
+                <div class="flex items-center gap-4 p-5 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100">
+                        <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-emerald-800">Repository Ready!</h4>
+                        <p class="text-xs text-emerald-600 mt-0.5">
+                            All files have been parsed, embedded, and indexed. You can now query this project.
+                        </p>
+                    </div>
+                    <a id="chat-link" href="/chat"
+                       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white
+                              bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition
+                              transform hover:scale-[1.02]">
+                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                        Start Chatting
+                    </a>
+                </div>
+            </div>
+
+            <!-- ── Error State (hidden by default) ── -->
+            <div id="ingest-error" class="hidden">
+                <div class="flex items-center gap-4 p-5 rounded-xl bg-red-50 border border-red-200">
+                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
+                        <i data-lucide="x-circle" class="w-6 h-6 text-red-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-red-800">Ingestion Failed</h4>
+                        <p class="text-xs text-red-600 mt-0.5" id="error-message">
+                            An unexpected error occurred during ingestion.
+                        </p>
+                    </div>
+                    <button onclick="resetProgress()"
+                            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                                   text-red-700 bg-red-100 hover:bg-red-200 transition">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ═══════════════════ EXISTING PROJECTS ═══════════════════ -->
+    {% if projects and projects|length > 0 %}
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="flex items-center gap-3 px-6 sm:px-8 py-5 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-accent-100 text-accent-600">
+                <i data-lucide="folder-open" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Existing Projects</h3>
+                <p class="text-xs text-slate-500">{{ projects|length }} project{{ 's' if projects|length != 1 else '' }} ingested</p>
+            </div>
+        </div>
+        <div class="divide-y divide-slate-100">
+            {% for project in projects %}
+            <div class="flex items-center gap-4 px-6 sm:px-8 py-4 hover:bg-slate-50/50 transition">
+                <div class="flex items-center justify-center w-10 h-10 rounded-xl
+                            bg-gradient-to-br from-primary-100 to-accent-100 text-primary-600 flex-shrink-0">
+                    <i data-lucide="code-2" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-slate-800 truncate">{{ project.name }}</p>
+                    <p class="text-xs text-slate-400 mt-0.5 truncate">
+                        {{ project.description or 'No description' }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    {% if project.status == 'ready' %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                 bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Ready
+                    </span>
+                    {% elif project.status == 'processing' %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                 bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        Processing
+                    </span>
+                    {% elif project.status == 'error' %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                 bg-red-50 text-red-700 border border-red-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                        Error
+                    </span>
+                    {% else %}
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                 bg-slate-50 text-slate-600 border border-slate-200">
+                        {{ project.status or 'Unknown' }}
+                    </span>
+                    {% endif %}
+                    <a href="/chat?project_id={{ project.id }}"
+                       class="inline-flex items-center justify-center w-8 h-8 rounded-lg
+                              text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition"
+                       title="Chat with this project">
+                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // ═══════════════════════════════════════════════════════════════
+    // TAB SWITCHING
+    // ═══════════════════════════════════════════════════════════════
+
+    const tabs    = ['paste', 'zip', 'github'];
+    let activeTab = 'paste';
+
+    window.switchTab = function(tab) {
+        activeTab = tab;
+        tabs.forEach(t => {
+            const btn   = document.getElementById('tab-' + t);
+            const panel = document.getElementById('panel-' + t);
+
+            if (t === tab) {
+                btn.classList.add('active');
+                panel.classList.remove('hidden');
+            } else {
+                btn.classList.remove('active');
+                panel.classList.add('hidden');
+            }
+        });
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    // DRAG-AND-DROP FOR ZIP
+    // ═══════════════════════════════════════════════════════════════
+
+    const dropZone  = document.getElementById('drop-zone');
+    const zipInput  = document.getElementById('zip-input');
+    const dzLabel   = document.getElementById('drop-zone-label');
+
+    if (dropZone && zipInput) {
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evt => {
+            dropZone.addEventListener(evt, e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+            });
+        });
+
+        dropZone.addEventListener('drop', e => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].name.endsWith('.zip')) {
+                zipInput.files = files;
+                dzLabel.textContent = files[0].name + ' (' + formatBytes(files[0].size) + ')';
+                dzLabel.classList.add('text-primary-600');
+            }
+        });
+
+        zipInput.addEventListener('change', () => {
+            if (zipInput.files.length > 0) {
+                const f = zipInput.files[0];
+                dzLabel.textContent = f.name + ' (' + formatBytes(f.size) + ')';
+                dzLabel.classList.add('text-primary-600');
+            }
+        });
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FORM SUBMISSION
+    // ═══════════════════════════════════════════════════════════════
+
+    let currentEventSource = null;
+
+    window.handleSubmit = function(event, type) {
+        event.preventDefault();
+
+        const form     = event.target;
+        const formData = new FormData(form);
+        formData.append('source_type', type);
+
+        // Map form field names to backend expectations
+        if (formData.has('project_name')) {
+            formData.append('name', formData.get('project_name'));
+        }
+        if (formData.has('zip_file')) {
+            formData.append('file', formData.get('zip_file'));
+        }
+        if (formData.has('github_url')) {
+            formData.append('url', formData.get('github_url'));
+        }
+
+        // Disable the submit button
+        const btn = document.getElementById('btn-' + type);
+        btn.disabled = true;
+        btn.innerHTML = `
+            <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            Ingesting...
+        `;
+
+        // Show progress panel
+        showProgressPanel();
+
+        // Submit the form
+        fetch('/api/ingest', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => { throw new Error(data.error || 'Ingestion request failed'); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            const projectId = data.project_id;
+            if (projectId) {
+                connectSSE(projectId);
+            } else {
+                // If no SSE, treat as immediate success
+                completeIngestion(data);
+            }
+        })
+        .catch(error => {
+            showError(error.message);
+            btn.disabled = false;
+            btn.innerHTML = getButtonLabel(type);
+        });
+
+        return false;
+    };
+
+    function getButtonLabel(type) {
+        const labels = {
+            paste:  '<i data-lucide="upload" class="w-4 h-4"></i> Ingest Code',
+            zip:    '<i data-lucide="archive" class="w-4 h-4"></i> Upload &amp; Ingest',
+            github: '<i data-lucide="git-branch" class="w-4 h-4"></i> Clone &amp; Ingest',
+        };
+        return labels[type] || 'Ingest';
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SSE CONNECTION FOR REAL-TIME PROGRESS
+    // ═══════════════════════════════════════════════════════════════
+
+    function connectSSE(projectId) {
+        if (currentEventSource) {
+            currentEventSource.close();
+        }
+
+        const url = '/api/ingest/status/' + projectId;
+        currentEventSource = new EventSource(url);
+
+        currentEventSource.addEventListener('message', function(e) {
+            try {
+                const data = JSON.parse(e.data);
+                handleSSEMessage(data, projectId);
+            } catch (err) {
+                // Plain text message
+                appendLog(e.data, 'info');
+            }
+        });
+
+        currentEventSource.addEventListener('error', function() {
+            currentEventSource.close();
+            currentEventSource = null;
+        });
+    }
+
+    // Map backend step names to frontend stage names
+    const STEP_TO_STAGE = {
+        'clone':   'extracting',
+        'extract': 'extracting',
+        'parse':   'parsing',
+        'chunk':   'parsing',
+        'embed':   'embedding',
+        'index':   'indexing',
+    };
+
+    let lastLogCount = 0;
+
+    function handleSSEMessage(data, projectId) {
+        // Process logs array from backend
+        if (data.logs && data.logs.length > 0) {
+            // Only process new logs since last update
+            const newLogs = data.logs.slice(lastLogCount);
+            lastLogCount = data.logs.length;
+
+            for (const log of newLogs) {
+                // Map step to pipeline stage and update visual
+                const stage = STEP_TO_STAGE[log.step];
+                if (stage) {
+                    updatePipelineStep(stage, 'active');
+                }
+                // Append each log message
+                appendLog(log.message, log.status || 'info');
+            }
+        }
+
+        // Update file/chunk counts in subtitle if available
+        if (data.total_files > 0 || data.total_chunks > 0) {
+            const sub = document.getElementById('progress-subtitle');
+            if (data.status === 'ready') {
+                sub.textContent = `Done — ${data.total_files} files, ${data.total_chunks} chunks indexed`;
+            }
+        }
+
+        // Handle completion: backend sends status "ready"
+        if (data.status === 'ready') {
+            completeIngestion({ project_id: projectId, total_files: data.total_files, total_chunks: data.total_chunks });
+            if (currentEventSource) {
+                currentEventSource.close();
+                currentEventSource = null;
+            }
+            lastLogCount = 0;
+        }
+
+        // Handle error
+        if (data.status === 'error') {
+            const errMsg = (data.logs && data.logs.length > 0)
+                ? data.logs[data.logs.length - 1].message
+                : 'An error occurred during ingestion.';
+            showError(errMsg);
+            if (currentEventSource) {
+                currentEventSource.close();
+                currentEventSource = null;
+            }
+            lastLogCount = 0;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PROGRESS UI UPDATES
+    // ═══════════════════════════════════════════════════════════════
+
+    const STAGES  = ['extracting', 'parsing', 'embedding', 'indexing'];
+    const CONNS   = ['conn-1', 'conn-2', 'conn-3'];
+
+    function showProgressPanel() {
+        const panel = document.getElementById('progress-panel');
+        panel.classList.remove('hidden');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Reset states
+        document.getElementById('ingest-success').classList.add('hidden');
+        document.getElementById('ingest-error').classList.add('hidden');
+        document.getElementById('progress-spinner').classList.remove('hidden');
+        document.getElementById('progress-subtitle').textContent = 'Processing your code...';
+
+        // Reset all steps to pending
+        STAGES.forEach(s => {
+            const el = document.getElementById('step-' + s);
+            el.className = el.className.replace(/completed|active|error/g, '').trim();
+            el.classList.add('pipeline-step', 'pending');
+        });
+        CONNS.forEach(c => {
+            const el = document.getElementById(c);
+            el.className = 'pipeline-connector flex-1 h-0.5 bg-slate-200 mx-2 rounded-full';
+        });
+
+        // Clear logs
+        const logContainer = document.getElementById('log-container');
+        logContainer.innerHTML = '<p class="text-slate-500 italic">Pipeline starting...</p>';
+    }
+
+    function updatePipelineStep(stage, status) {
+        const stageKey = stage.toLowerCase().replace(/\s+/g, '');
+        const stageIndex = STAGES.indexOf(stageKey);
+        if (stageIndex === -1) return;
+
+        // Mark all previous stages as completed
+        for (let i = 0; i < stageIndex; i++) {
+            const el = document.getElementById('step-' + STAGES[i]);
+            el.classList.remove('pending', 'active', 'error');
+            el.classList.add('completed');
+
+            if (i < CONNS.length) {
+                const conn = document.getElementById(CONNS[i]);
+                conn.classList.remove('active');
+                conn.classList.add('completed');
+            }
+        }
+
+        // Set current stage
+        const currentEl = document.getElementById('step-' + stageKey);
+        currentEl.classList.remove('pending', 'completed', 'error');
+
+        if (status === 'completed') {
+            currentEl.classList.add('completed');
+            if (stageIndex < CONNS.length) {
+                document.getElementById(CONNS[stageIndex]).classList.add('completed');
+            }
+        } else if (status === 'error') {
+            currentEl.classList.add('error');
+        } else {
+            currentEl.classList.add('active');
+            if (stageIndex > 0 && stageIndex - 1 < CONNS.length) {
+                document.getElementById(CONNS[stageIndex - 1]).classList.add('completed');
+            }
+        }
+
+        // Update subtitle
+        const subtitles = {
+            extracting: 'Extracting files from source...',
+            parsing:    'Parsing code structure and AST...',
+            embedding:  'Generating vector embeddings...',
+            indexing:   'Building search index...',
+        };
+        document.getElementById('progress-subtitle').textContent = subtitles[stageKey] || 'Processing...';
+    }
+
+    function appendLog(message, level) {
+        const logContainer = document.getElementById('log-container');
+
+        // Remove the initial placeholder
+        const placeholder = logContainer.querySelector('.italic');
+        if (placeholder) placeholder.remove();
+
+        const entry = document.createElement('div');
+        entry.className = 'log-entry flex items-start gap-2 pl-2 py-1 border-l-2 log-' + (level || 'info');
+
+        const timestamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
+
+        const colors = {
+            info:    'text-blue-400',
+            success: 'text-emerald-400',
+            error:   'text-red-400',
+            warning: 'text-amber-400',
+        };
+        const textColor = colors[level] || colors.info;
+
+        const icons = {
+            info:    'info',
+            success: 'check-circle',
+            error:   'x-circle',
+            warning: 'alert-triangle',
+        };
+
+        entry.innerHTML = `
+            <span class="text-slate-600 flex-shrink-0 select-none">${timestamp}</span>
+            <i data-lucide="${icons[level] || 'info'}" class="w-3 h-3 mt-0.5 flex-shrink-0 ${textColor}"></i>
+            <span class="${textColor}">${escapeHtml(message)}</span>
+        `;
+
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+
+        // Re-render lucide icons in the new entry
+        lucide.createIcons({ nodes: [entry] });
+    }
+
+    function completeIngestion(data) {
+        // Mark all steps as completed
+        STAGES.forEach(s => {
+            const el = document.getElementById('step-' + s);
+            el.classList.remove('pending', 'active', 'error');
+            el.classList.add('completed');
+        });
+        CONNS.forEach(c => {
+            const el = document.getElementById(c);
+            el.classList.add('completed');
+        });
+
+        // Hide spinner
+        document.getElementById('progress-spinner').classList.add('hidden');
+        document.getElementById('progress-subtitle').textContent = 'Ingestion complete!';
+
+        // Show success panel
+        appendLog('Ingestion pipeline completed successfully!', 'success');
+        document.getElementById('ingest-success').classList.remove('hidden');
+
+        // Set chat link
+        if (data && data.project_id) {
+            document.getElementById('chat-link').href = '/chat?project_id=' + data.project_id;
+        }
+
+        // Re-enable submit buttons
+        resetButtons();
+
+        // Re-render icons
+        lucide.createIcons();
+
+        // Show toast
+        if (window.showToast) {
+            window.showToast('Repository ingested successfully!', 'success');
+        }
+    }
+
+    function showError(message) {
+        document.getElementById('progress-spinner').classList.add('hidden');
+        document.getElementById('progress-subtitle').textContent = 'Ingestion failed';
+
+        appendLog(message || 'An unexpected error occurred.', 'error');
+
+        document.getElementById('error-message').textContent = message || 'An unexpected error occurred during ingestion.';
+        document.getElementById('ingest-error').classList.remove('hidden');
+
+        resetButtons();
+        lucide.createIcons();
+
+        if (window.showToast) {
+            window.showToast('Ingestion failed: ' + (message || 'Unknown error'), 'error');
+        }
+    }
+
+    window.resetProgress = function() {
+        document.getElementById('progress-panel').classList.add('hidden');
+        document.getElementById('ingest-success').classList.add('hidden');
+        document.getElementById('ingest-error').classList.add('hidden');
+        resetButtons();
+    };
+
+    function resetButtons() {
+        const btnConfigs = {
+            'btn-paste':  { icon: 'upload',     label: 'Ingest Code' },
+            'btn-zip':    { icon: 'archive',    label: 'Upload &amp; Ingest' },
+            'btn-github': { icon: 'git-branch', label: 'Clone &amp; Ingest' },
+        };
+
+        Object.entries(btnConfigs).forEach(([id, cfg]) => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="${cfg.icon}" class="w-4 h-4"></i> ${cfg.label}`;
+            }
+        });
+
+        lucide.createIcons();
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+})();
+</script>
+{% endblock %}
